@@ -72,14 +72,16 @@ const Index = () => {
             className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4"
           >
             <a
-              href="https://algaza.site/download/ne.apk"
+              href="https://drive.google.com/drive/mobile/folders/1RqCSzcesOLWkJ72-jIKmUffc6u6WPFXa"
+              target="_blank"
+              rel="noopener noreferrer"
               className="group inline-flex items-center gap-3 rounded-lg bg-primary px-8 py-4 font-display text-sm font-bold tracking-wider text-primary-foreground uppercase glow-primary transition-transform hover:scale-105 active:scale-95 w-full sm:w-auto justify-center"
             >
               <Download className="h-5 w-5 transition-transform group-hover:-translate-y-0.5" />
               Download Android
             </a>
             <a
-              href="https://algaza.site/download/wa.php"
+              href="https://chat.whatsapp.com/KGeNuqoy0oxCqeHVBWbtEn?mode=gi_t"
               target="_blank"
               rel="noopener noreferrer"
               className="group inline-flex items-center gap-3 rounded-lg border border-border bg-card/60 backdrop-blur-sm px-8 py-4 font-display text-sm font-bold tracking-wider text-foreground uppercase transition-all hover:border-secondary/50 hover:bg-secondary/10 w-full sm:w-auto justify-center"
@@ -141,14 +143,16 @@ const Index = () => {
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
               <a
-                href="https://algaza.site/download/ne.apk"
+                href="https://drive.google.com/drive/mobile/folders/1RqCSzcesOLWkJ72-jIKmUffc6u6WPFXa"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="group inline-flex items-center gap-3 rounded-lg bg-primary px-8 py-4 font-display text-sm font-bold tracking-wider text-primary-foreground uppercase transition-transform hover:scale-105 active:scale-95 w-full sm:w-auto justify-center"
               >
                 <Download className="h-5 w-5" />
                 Download APK
               </a>
               <a
-                href="https://algaza.site/download/wa.php"
+                href="https://chat.whatsapp.com/KGeNuqoy0oxCqeHVBWbtEn?mode=gi_t"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group inline-flex items-center gap-3 rounded-lg border border-secondary/40 bg-secondary/10 px-8 py-4 font-display text-sm font-bold tracking-wider text-secondary uppercase transition-all hover:bg-secondary/20 w-full sm:w-auto justify-center"
