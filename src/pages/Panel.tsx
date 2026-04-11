@@ -279,7 +279,7 @@ const Panel = () => {
 
               <div className="relative">
                 <Input
-                  placeholder={`Ketik nama ${selectedCategory === "skill" ? "skill" : "item"}...`}
+                  placeholder={`Ketik nama ${selectedCategory === "skills" ? "skill" : "item"}...`}
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
