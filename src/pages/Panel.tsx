@@ -56,7 +56,7 @@ const Panel = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<"skill" | "items" | "">("");
+  const [selectedCategory, setSelectedCategory] = useState<"skills" | "items" | "">("");
 
   // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -116,7 +116,7 @@ const Panel = () => {
     }
   };
 
-  const searchItems = useCallback(async (q: string, cat: "skill" | "items") => {
+  const searchItems = useCallback(async (q: string, cat: "skills" | "items") => {
     if (!character || q.length < 2) {
       setSearchResults([]);
       return;
@@ -136,7 +136,7 @@ const Panel = () => {
   const claimItem = async (item: SearchResultItem) => {
     if (!character) return;
     setLoading(true);
-    const idField = selectedCategory === "skill" ? item.skill_id : item.item_id;
+    const idField = selectedCategory === "skills" ? item.skill_id : item.item_id;
     try {
       const res = await fetch(`${API_BASE}/${character.id}/${selectedCategory}/${idField}`);
       const json = await res.json();
@@ -155,7 +155,7 @@ const Panel = () => {
     }
   };
 
-  const handleCategorySelect = (cat: "skill" | "items") => {
+  const handleCategorySelect = (cat: "skills" | "items") => {
     setSelectedCategory(cat);
     setSearchQuery("");
     setSearchResults([]);
@@ -244,7 +244,7 @@ const Panel = () => {
                   </div>
                 </Button>
 
-                <Button onClick={() => handleCategorySelect("skill")} disabled={character.klaim <= 0} className="w-full h-14 text-base font-display justify-start gap-3 bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/30" variant="ghost">
+                <Button onClick={() => handleCategorySelect("skills")} disabled={character.klaim <= 0} className="w-full h-14 text-base font-display justify-start gap-3 bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/30" variant="ghost">
                   <Sparkles className="w-5 h-5" />
                   <div className="text-left">
                     <div className="font-bold">SKILL</div>
@@ -273,7 +273,7 @@ const Panel = () => {
               <div className="flex items-center gap-2 text-accent">
                 <Search className="w-5 h-5" />
                 <span className="font-display text-sm font-semibold tracking-wider">
-                  CARI {selectedCategory === "skill" ? "SKILL" : "ITEM"}
+                  CARI {selectedCategory === "skills" ? "SKILL" : "ITEM"}
                 </span>
               </div>
 
