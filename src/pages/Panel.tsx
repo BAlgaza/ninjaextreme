@@ -283,7 +283,7 @@ const Panel = () => {
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
-                    searchItems(e.target.value, selectedCategory as "skill" | "items");
+                    searchItems(e.target.value, selectedCategory as "items" | "skills");
                   }}
                   className="bg-muted border-border text-foreground placeholder:text-muted-foreground h-12 pr-10"
                 />
