@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Coins, Package, Sparkles, ShieldAlert, ArrowLeft, Gift, X, Loader2 } from "lucide-react";
+import { Search, Coins, Package, Sparkles, ShieldAlert, ArrowLeft, Gift, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,6 +10,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 const API_BASE = "https://vps.algaza.site/api";
 
@@ -46,9 +47,10 @@ interface SearchResultItem {
   icon?: string | null;
 }
 
-type Step = "input" | "choose" | "search" | "done";
+type Step = "input" | "choose" | "search";
 
 const Panel = () => {
+  const { t } = useLanguage();
   const [charId, setCharId] = useState("");
   const [character, setCharacter] = useState<CharacterData | null>(null);
   const [step, setStep] = useState<Step>("input");
@@ -58,7 +60,6 @@ const Panel = () => {
   const [searchLoading, setSearchLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<"skills" | "items" | "">("");
 
-  // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogTitle, setDialogTitle] = useState("");
   const [dialogMsg, setDialogMsg] = useState("");
@@ -80,16 +81,16 @@ const Panel = () => {
       if (json.status && json.data) {
         const data = json.data as CharacterData;
         if (data.klaim === 0) {
-          showDialog("Akses Ditolak", "Kamu sudah limit klaim hari ini. Kembali besok! 🕐", "error");
+          showDialog(t("panel_blocked"), t("panel_blocked_msg"), "error");
         } else {
           setCharacter(data);
           setStep("choose");
         }
       } else {
-        showDialog("Error", json.message || "Karakter tidak ditemukan", "error");
+        showDialog(t("panel_error"), json.message || t("panel_char_not_found"), "error");
       }
     } catch {
-      showDialog("Error", "Gagal menghubungi server. Coba lagi nanti.", "error");
+      showDialog(t("panel_error"), t("panel_server_error"), "error");
     } finally {
       setLoading(false);
     }
@@ -102,15 +103,15 @@ const Panel = () => {
       const res = await fetch(`${API_BASE}/${character.id}/tokens/10000`);
       const json = await res.json();
       showDialog(
-        json.status ? "Berhasil! 🎉" : "Gagal",
-        json.message || (json.status ? "10.000 Tokens berhasil diklaim!" : "Klaim gagal."),
+        json.status ? t("panel_success") : t("panel_failed"),
+        json.message || (json.status ? t("panel_tokens_claimed") : t("panel_claim_failed")),
         json.status ? "success" : "error"
       );
       if (json.status) {
         setCharacter((prev) => prev ? { ...prev, klaim: prev.klaim - 1 } : prev);
       }
     } catch {
-      showDialog("Error", "Gagal menghubungi server.", "error");
+      showDialog(t("panel_error"), t("panel_server_error"), "error");
     } finally {
       setLoading(false);
     }
@@ -141,15 +142,15 @@ const Panel = () => {
       const res = await fetch(`${API_BASE}/${character.id}/${selectedCategory}/${idField}`);
       const json = await res.json();
       showDialog(
-        json.status ? "Berhasil! 🎉" : "Gagal",
-        json.message || (json.status ? `${item.name} berhasil diklaim!` : "Klaim gagal."),
+        json.status ? t("panel_success") : t("panel_failed"),
+        json.message || (json.status ? `${item.name} ${t("panel_claimed")}` : t("panel_claim_failed")),
         json.status ? "success" : "error"
       );
       if (json.status) {
         setCharacter((prev) => prev ? { ...prev, klaim: prev.klaim - 1 } : prev);
       }
     } catch {
-      showDialog("Error", "Gagal menghubungi server.", "error");
+      showDialog(t("panel_error"), t("panel_server_error"), "error");
     } finally {
       setLoading(false);
     }
@@ -172,51 +173,42 @@ const Panel = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center px-4 py-8">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-8"
-      >
+    <div className="min-h-screen bg-background flex flex-col items-center px-4 py-8 pt-20">
+      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
         <h1 className="text-3xl md:text-4xl font-display font-bold text-primary text-glow mb-2">
-          NINJA'S EXTREME
+          {t("panel_title")}
         </h1>
-        <p className="text-muted-foreground font-body">Web Panel — Klaim Reward</p>
+        <p className="text-muted-foreground font-body">{t("panel_subtitle")}</p>
       </motion.div>
 
-      {/* Main Card */}
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-md glass-card rounded-2xl p-6 space-y-6"
       >
         <AnimatePresence mode="wait">
-          {/* STEP 1: Input Character ID */}
           {step === "input" && (
             <motion.div key="input" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-4">
               <div className="flex items-center gap-2 text-accent">
                 <ShieldAlert className="w-5 h-5" />
-                <span className="font-display text-sm font-semibold tracking-wider">MASUKKAN KARAKTER ID</span>
+                <span className="font-display text-sm font-semibold tracking-wider">{t("panel_enter_id")}</span>
               </div>
               <Input
                 type="number"
-                placeholder="Contoh: 1"
+                placeholder={t("panel_placeholder_id")}
                 value={charId}
                 onChange={(e) => setCharId(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && fetchCharacter()}
                 className="bg-muted border-border text-foreground placeholder:text-muted-foreground text-lg h-12"
               />
               <Button onClick={fetchCharacter} disabled={loading || !charId.trim()} className="w-full h-12 text-base font-display glow-primary">
-                {loading ? <Loader2 className="animate-spin" /> : "TARIK DATA"}
+                {loading ? <Loader2 className="animate-spin" /> : t("panel_fetch")}
               </Button>
             </motion.div>
           )}
 
-          {/* STEP 2: Choose Category */}
           {step === "choose" && character && (
             <motion.div key="choose" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-5">
-              {/* Character Info */}
               <div className="glass-card rounded-xl p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-display text-lg font-bold text-primary">{character.name}</span>
@@ -230,56 +222,55 @@ const Panel = () => {
 
               <div className="flex items-center gap-2 text-accent">
                 <Gift className="w-5 h-5" />
-                <span className="font-display text-sm font-semibold">HAK KLAIM: <span className="text-primary">{character.klaim}x</span></span>
+                <span className="font-display text-sm font-semibold">{t("panel_claim_rights")}: <span className="text-primary">{character.klaim}x</span></span>
               </div>
 
-              <p className="text-muted-foreground text-sm">Pilih kategori yang ingin diklaim:</p>
+              <p className="text-muted-foreground text-sm">{t("panel_choose_category")}</p>
 
               <div className="space-y-3">
                 <Button onClick={claimTokens} disabled={loading || character.klaim <= 0} className="w-full h-14 text-base font-display justify-start gap-3 bg-accent/10 hover:bg-accent/20 text-accent border border-accent/30">
                   {loading ? <Loader2 className="animate-spin" /> : <Coins className="w-5 h-5" />}
                   <div className="text-left">
-                    <div className="font-bold">TOKENS</div>
-                    <div className="text-xs opacity-70">Klaim 10.000 Tokens</div>
+                    <div className="font-bold">{t("panel_tokens")}</div>
+                    <div className="text-xs opacity-70">{t("panel_tokens_desc")}</div>
                   </div>
                 </Button>
 
                 <Button onClick={() => handleCategorySelect("skills")} disabled={character.klaim <= 0} className="w-full h-14 text-base font-display justify-start gap-3 bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/30" variant="ghost">
                   <Sparkles className="w-5 h-5" />
                   <div className="text-left">
-                    <div className="font-bold">SKILL</div>
-                    <div className="text-xs opacity-70">Cari & klaim skill</div>
+                    <div className="font-bold">{t("panel_skill")}</div>
+                    <div className="text-xs opacity-70">{t("panel_skill_desc")}</div>
                   </div>
                 </Button>
 
                 <Button onClick={() => handleCategorySelect("items")} disabled={character.klaim <= 0} className="w-full h-14 text-base font-display justify-start gap-3 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30" variant="ghost">
                   <Package className="w-5 h-5" />
                   <div className="text-left">
-                    <div className="font-bold">ITEM</div>
-                    <div className="text-xs opacity-70">Cari & klaim item</div>
+                    <div className="font-bold">{t("panel_item")}</div>
+                    <div className="text-xs opacity-70">{t("panel_item_desc")}</div>
                   </div>
                 </Button>
               </div>
 
               <Button onClick={reset} variant="ghost" className="w-full text-muted-foreground">
-                <ArrowLeft className="w-4 h-4 mr-2" /> Kembali
+                <ArrowLeft className="w-4 h-4 mr-2" /> {t("panel_back")}
               </Button>
             </motion.div>
           )}
 
-          {/* STEP 3: Search */}
           {step === "search" && character && (
             <motion.div key="search" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-4">
               <div className="flex items-center gap-2 text-accent">
                 <Search className="w-5 h-5" />
                 <span className="font-display text-sm font-semibold tracking-wider">
-                  CARI {selectedCategory === "skills" ? "SKILL" : "ITEM"}
+                  {t("panel_search")} {selectedCategory === "skills" ? t("panel_skill") : t("panel_item")}
                 </span>
               </div>
 
               <div className="relative">
                 <Input
-                  placeholder={`Ketik nama ${selectedCategory === "skills" ? "skill" : "item"}...`}
+                  placeholder={selectedCategory === "skills" ? t("panel_search_placeholder_skill") : t("panel_search_placeholder_item")}
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
@@ -290,7 +281,6 @@ const Panel = () => {
                 {searchLoading && <Loader2 className="absolute right-3 top-3.5 w-5 h-5 animate-spin text-muted-foreground" />}
               </div>
 
-              {/* Results */}
               <div className="max-h-64 overflow-y-auto space-y-2 scrollbar-thin">
                 {searchResults.map((item) => (
                   <motion.button
@@ -311,19 +301,18 @@ const Panel = () => {
                   </motion.button>
                 ))}
                 {searchQuery.length >= 2 && !searchLoading && searchResults.length === 0 && (
-                  <p className="text-center text-muted-foreground text-sm py-4">Tidak ditemukan</p>
+                  <p className="text-center text-muted-foreground text-sm py-4">{t("panel_not_found")}</p>
                 )}
               </div>
 
               <Button onClick={() => { setStep("choose"); setSearchResults([]); setSearchQuery(""); }} variant="ghost" className="w-full text-muted-foreground">
-                <ArrowLeft className="w-4 h-4 mr-2" /> Kembali
+                <ArrowLeft className="w-4 h-4 mr-2" /> {t("panel_back")}
               </Button>
             </motion.div>
           )}
         </AnimatePresence>
       </motion.div>
 
-      {/* Result Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="glass-card border-border max-w-sm">
           <DialogHeader>
@@ -335,7 +324,7 @@ const Panel = () => {
             </DialogDescription>
           </DialogHeader>
           <Button onClick={() => setDialogOpen(false)} className="w-full mt-2 font-display">
-            OK
+            {t("panel_ok")}
           </Button>
         </DialogContent>
       </Dialog>
