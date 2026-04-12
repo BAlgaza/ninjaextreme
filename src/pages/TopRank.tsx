@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Trophy, Crown, Medal, Loader2 } from "lucide-react";
+import { Trophy, Crown, Medal, Loader2, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 
 interface RankPlayer {
@@ -19,26 +19,62 @@ const TopRank = () => {
   const [players, setPlayers] = useState<RankPlayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [secondsAgo, setSecondsAgo] = useState(0);
 
-  useEffect(() => {
-    fetch("https://vps.algaza.site/api/top10/level")
-      .then((r) => r.json())
-      .then((json) => {
-        if (json.status) setPlayers(json.data);
-        else setError(true);
-      })
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
+  const fetchData = useCallback(async () => {
+    try {
+      const r = await fetch("https://vps.algaza.site/api/top10/level");
+      const json = await r.json();
+      if (json.status) {
+        setPlayers(json.data);
+        setLastUpdate(new Date());
+        setSecondsAgo(0);
+        setError(false);
+      } else {
+        setError(true);
+      }
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    fetchData();
+    const id = setInterval(fetchData, 30000);
+    return () => clearInterval(id);
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (!lastUpdate) return;
+    const id = setInterval(() => {
+      setSecondsAgo(Math.floor((Date.now() - lastUpdate.getTime()) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [lastUpdate]);
+
   return (
-    <div className="min-h-screen bg-background pt-20 pb-8 px-4">
+    <div className="min-h-screen bg-background pt-[calc(1.75rem+3.5rem+1rem)] pb-8 px-4">
       <div className="container max-w-2xl">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
           <Trophy className="mx-auto w-10 h-10 text-accent mb-3" />
           <h1 className="font-display text-3xl md:text-4xl font-bold text-primary text-glow">{t("rank_title")}</h1>
           <p className="text-muted-foreground mt-1">{t("rank_subtitle")}</p>
         </motion.div>
+
+        {/* Last sync info */}
+        {lastUpdate && (
+          <div className="flex items-center justify-center gap-3 mb-4 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <RefreshCw className="w-3 h-3 text-primary animate-spin" style={{ animationDuration: "3s" }} />
+              <span>{t("rank_last_sync")}: <span className="text-foreground font-semibold">{secondsAgo}{t("rank_seconds_ago")}</span></span>
+            </div>
+            <span className="text-border">•</span>
+            <span>{t("rank_auto_refresh")}</span>
+          </div>
+        )}
 
         {loading && (
           <div className="flex justify-center py-20">

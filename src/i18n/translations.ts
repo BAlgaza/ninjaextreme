@@ -51,13 +51,18 @@ export const translations = {
     rank_xp: "XP",
     rank_loading: "Loading rankings...",
     rank_error: "Failed to load rankings",
+    rank_last_sync: "Last sync",
+    rank_seconds_ago: "seconds ago",
+    rank_auto_refresh: "Auto-refresh every 30s",
 
     // Donatur
     donatur_title: "SUPPORT THE SERVER",
     donatur_subtitle: "Your donation keeps Ninja's Extreme alive",
     donatur_msg: "Every donation is incredibly valuable to us for the survival and development of this server. Your support helps pay for server costs and keeps the game running for everyone.",
-    donatur_join: "Join our WhatsApp group to make a donation and get exclusive donor benefits!",
-    donatur_wa: "Donate via WhatsApp",
+    donatur_join_community: "Join Our Community",
+    donatur_join_desc: "Connect with other players, get updates, and donate to support the server!",
+    donatur_wa: "WhatsApp Group",
+    donatur_discord: "Discord Server",
     donatur_list_title: "DONOR LIST",
     donatur_empty: "Currently empty — be the first donor! 💪",
 
@@ -70,8 +75,13 @@ export const translations = {
 
     // Download popup
     download_title: "Download Game",
-    download_desc: "Get the latest version of Ninja's Extreme for Android",
+    download_desc: "Get the latest version of Ninja's Extreme",
+    download_android: "Download for Android",
+    download_windows: "Download for Windows",
     download_btn: "Download APK",
+
+    // Server time bar
+    server_time: "Server Time",
   },
   id: {
     nav_home: "Beranda",
@@ -121,12 +131,17 @@ export const translations = {
     rank_xp: "XP",
     rank_loading: "Memuat peringkat...",
     rank_error: "Gagal memuat peringkat",
+    rank_last_sync: "Sinkron terakhir",
+    rank_seconds_ago: "detik lalu",
+    rank_auto_refresh: "Otomatis refresh setiap 30d",
 
     donatur_title: "DUKUNG SERVER",
     donatur_subtitle: "Donasimu menjaga Ninja's Extreme tetap hidup",
     donatur_msg: "Setiap donatur sangat berharga di kami untuk kelangsungan hidup server ini. Dukunganmu membantu membayar biaya server dan menjaga game tetap berjalan untuk semua orang.",
-    donatur_join: "Bergabunglah di grup WhatsApp kami untuk berdonasi dan dapatkan benefit eksklusif donatur!",
-    donatur_wa: "Donasi via WhatsApp",
+    donatur_join_community: "Gabung Komunitas Kami",
+    donatur_join_desc: "Terhubung dengan pemain lain, dapatkan update, dan donasi untuk mendukung server!",
+    donatur_wa: "Grup WhatsApp",
+    donatur_discord: "Server Discord",
     donatur_list_title: "DAFTAR DONATUR",
     donatur_empty: "Sementara kosong — jadilah donatur pertama! 💪",
 
@@ -137,8 +152,12 @@ export const translations = {
     footer_by: "oleh",
 
     download_title: "Download Game",
-    download_desc: "Dapatkan versi terbaru Ninja's Extreme untuk Android",
+    download_desc: "Dapatkan versi terbaru Ninja's Extreme",
+    download_android: "Download untuk Android",
+    download_windows: "Download untuk Windows",
     download_btn: "Download APK",
+
+    server_time: "Waktu Server",
   },
 } as const;
 

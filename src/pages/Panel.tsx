@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Coins, Package, Sparkles, ShieldAlert, ArrowLeft, Gift, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,17 @@ import {
 import { useLanguage } from "@/i18n/LanguageContext";
 
 const API_BASE = "https://vps.algaza.site/api";
+
+function getCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+  return match ? match[2] : null;
+}
+
+function setCookie(name: string, value: string, days = 365) {
+  const d = new Date();
+  d.setTime(d.getTime() + days * 86400000);
+  document.cookie = `${name}=${value};expires=${d.toUTCString()};path=/`;
+}
 
 interface CharacterData {
   id: number;
@@ -51,7 +62,7 @@ type Step = "input" | "choose" | "search";
 
 const Panel = () => {
   const { t } = useLanguage();
-  const [charId, setCharId] = useState("");
+  const [charId, setCharId] = useState(() => getCookie("ne_char_id") || "");
   const [character, setCharacter] = useState<CharacterData | null>(null);
   const [step, setStep] = useState<Step>("input");
   const [loading, setLoading] = useState(false);
@@ -75,6 +86,7 @@ const Panel = () => {
   const fetchCharacter = async () => {
     if (!charId.trim()) return;
     setLoading(true);
+    setCookie("ne_char_id", charId.trim());
     try {
       const res = await fetch(`${API_BASE}/${encodeURIComponent(charId.trim())}/tarik`);
       const json = await res.json();
@@ -166,14 +178,13 @@ const Panel = () => {
   const reset = () => {
     setStep("input");
     setCharacter(null);
-    setCharId("");
     setSearchQuery("");
     setSearchResults([]);
     setSelectedCategory("");
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center px-4 py-8 pt-20">
+    <div className="min-h-screen bg-background flex flex-col items-center px-4 py-8 pt-[calc(1.75rem+3.5rem+1rem)]">
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
         <h1 className="text-3xl md:text-4xl font-display font-bold text-primary text-glow mb-2">
           {t("panel_title")}

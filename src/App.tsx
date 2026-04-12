@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LanguageProvider } from "@/i18n/LanguageContext";
 import LanguagePicker from "@/components/LanguagePicker";
+import ServerTimeBar from "@/components/ServerTimeBar";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Index from "./pages/Index.tsx";
@@ -23,6 +24,7 @@ const App = () => (
         <Sonner />
         <LanguagePicker />
         <BrowserRouter>
+          <ServerTimeBar />
           <Navbar />
           <Routes>
             <Route path="/" element={<Index />} />
