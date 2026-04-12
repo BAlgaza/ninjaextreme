@@ -165,14 +165,6 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border/50 py-8">
-        <div className="container px-4 text-center">
-          <p className="font-display text-xs tracking-widest text-muted-foreground uppercase">
-            © 2026 Ninja's Extreme — All Rights Reserved
-          </p>
-        </div>
-      </footer>
     </div>
   );
 };
