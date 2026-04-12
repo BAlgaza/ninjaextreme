@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Globe, Download } from "lucide-react";
+import { Menu, X, Globe, Download, Monitor, Smartphone } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +11,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+
+const DOWNLOAD_LINK = "https://drive.google.com/drive/mobile/folders/1RqCSzcesOLWkJ72-jIKmUffc6u6WPFXa";
 
 const Navbar = () => {
   const { t, lang, setLang } = useLanguage();
@@ -31,7 +33,7 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border/50">
+      <nav className="fixed top-7 left-0 right-0 z-50 glass-card border-b border-border/50">
         <div className="container flex items-center justify-between h-14 px-4">
           <Link to="/" className="font-display text-lg font-bold text-primary tracking-wider">
             NE
@@ -128,17 +130,30 @@ const Navbar = () => {
               {t("download_desc")}
             </DialogDescription>
           </DialogHeader>
-          <a
-            href="https://drive.google.com/drive/mobile/folders/1RqCSzcesOLWkJ72-jIKmUffc6u6WPFXa"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full"
-          >
-            <Button className="w-full h-12 font-display text-base glow-primary">
-              <Download className="w-5 h-5 mr-2" />
-              {t("download_btn")}
-            </Button>
-          </a>
+          <div className="space-y-3">
+            <a
+              href={DOWNLOAD_LINK}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full block"
+            >
+              <Button className="w-full h-12 font-display text-base glow-primary gap-2">
+                <Smartphone className="w-5 h-5" />
+                {t("download_android")}
+              </Button>
+            </a>
+            <a
+              href={DOWNLOAD_LINK}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full block"
+            >
+              <Button variant="outline" className="w-full h-12 font-display text-base gap-2 border-border hover:bg-muted">
+                <Monitor className="w-5 h-5" />
+                {t("download_windows")}
+              </Button>
+            </a>
+          </div>
         </DialogContent>
       </Dialog>
     </>
