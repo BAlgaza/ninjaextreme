@@ -81,6 +81,15 @@ export const translations = {
     donatur_date: "Date",
     donatur_help_title: "HELP DEVELOP THE SERVER",
     donatur_help_desc: "Your donation directly supports server costs, new features, and continuous improvements. Together we keep Ninja's Extreme alive and growing!",
+    donatur_times: "donations",
+    donatur_view_history: "View history",
+    donatur_history_title: "Donation History",
+    donatur_summary_title: "Income Summary",
+    donatur_summary_qris: "QRIS Income",
+    donatur_summary_paypal: "PayPal Income",
+    donatur_summary_avg: "Average per Donation",
+    donatur_summary_top: "Top Donor",
+    donatur_unique_donors: "Unique Donors",
 
     // Footer
     footer_server_time: "Server Time",
