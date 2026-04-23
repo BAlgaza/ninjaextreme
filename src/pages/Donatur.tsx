@@ -1,9 +1,9 @@
 import { motion } from "framer-motion";
-import { Heart, MessageCircle, Users, Gift, QrCode, TrendingUp, Sparkles } from "lucide-react";
+import { Heart, MessageCircle, Users, Gift, QrCode, TrendingUp, Sparkles, History, Wallet, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useLanguage } from "@/i18n/LanguageContext";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const DiscordIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
@@ -29,6 +29,15 @@ interface DonorApiResponse {
   data: DonorEntry[];
 }
 
+interface GroupedDonor {
+  user_id: number;
+  username: string;
+  total: number;
+  count: number;
+  lastDate: string;
+  entries: DonorEntry[];
+}
+
 const formatRupiah = (n: number) => "Rp " + n.toLocaleString("id-ID");
 
 const formatDate = (iso: string, lang: string) => {
@@ -50,6 +59,7 @@ const Donatur = () => {
   const [donorData, setDonorData] = useState<DonorApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [qrisOpen, setQrisOpen] = useState(false);
+  const [historyDonor, setHistoryDonor] = useState<GroupedDonor | null>(null);
 
   useEffect(() => {
     fetch("https://play.kotagames.web.id/api/donatur/log")
@@ -58,6 +68,41 @@ const Donatur = () => {
       .catch(() => setDonorData(null))
       .finally(() => setLoading(false));
   }, []);
+
+  const grouped = useMemo<GroupedDonor[]>(() => {
+    if (!donorData?.data) return [];
+    const map = new Map<number, GroupedDonor>();
+    for (const d of donorData.data) {
+      const g = map.get(d.user_id);
+      if (g) {
+        g.total += d.nominal;
+        g.count += 1;
+        g.entries.push(d);
+        if (new Date(d.created_at) > new Date(g.lastDate)) g.lastDate = d.created_at;
+      } else {
+        map.set(d.user_id, {
+          user_id: d.user_id,
+          username: d.username,
+          total: d.nominal,
+          count: 1,
+          lastDate: d.created_at,
+          entries: [d],
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+  }, [donorData]);
+
+  const summary = useMemo(() => {
+    if (!donorData?.data?.length) return null;
+    const qris = donorData.data.filter((d) => d.method === "qris").reduce((s, d) => s + d.nominal, 0);
+    const paypal = donorData.data.filter((d) => d.method === "paypal").reduce((s, d) => s + d.nominal, 0);
+    const total = parseInt(donorData.total || "0", 10);
+    const avg = Math.round(total / donorData.data.length);
+    const top = grouped[0];
+    return { qris, paypal, avg, top };
+  }, [donorData, grouped]);
+
 
   return (
     <div className="min-h-screen bg-background pt-[calc(1.75rem+3.5rem+1rem)] pb-8 px-4">
