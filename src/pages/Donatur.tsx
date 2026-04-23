@@ -63,9 +63,20 @@ const Donatur = () => {
   const [historyDonor, setHistoryDonor] = useState<GroupedDonor | null>(null);
 
   useEffect(() => {
-    fetch("https://play.kotagames.web.id/api/donatur/log")
-      .then((r) => r.json())
-      .then((d: DonorApiResponse) => setDonorData(d))
+    const apiUrl = "https://play.kotagames.web.id/api/donatur/log";
+    const tryFetch = async () => {
+      // Try direct first, then fall back to CORS proxy
+      try {
+        const r = await fetch(apiUrl);
+        if (!r.ok) throw new Error("bad status");
+        return (await r.json()) as DonorApiResponse;
+      } catch {
+        const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(apiUrl)}`);
+        return (await r.json()) as DonorApiResponse;
+      }
+    };
+    tryFetch()
+      .then((d) => setDonorData(d))
       .catch(() => setDonorData(null))
       .finally(() => setLoading(false));
   }, []);
