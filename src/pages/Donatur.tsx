@@ -80,7 +80,6 @@ const Donatur = () => {
       .catch(() => setDonorData(null))
       .finally(() => setLoading(false));
   }, []);
-  }, []);
 
   const grouped = useMemo<GroupedDonor[]>(() => {
     if (!donorData?.data) return [];
