@@ -1,9 +1,9 @@
 import { motion } from "framer-motion";
-import { Heart, MessageCircle, Users, Gift, QrCode, TrendingUp, Sparkles } from "lucide-react";
+import { Heart, MessageCircle, Users, Gift, QrCode, TrendingUp, Sparkles, History, Wallet, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useLanguage } from "@/i18n/LanguageContext";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const DiscordIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
@@ -29,6 +29,15 @@ interface DonorApiResponse {
   data: DonorEntry[];
 }
 
+interface GroupedDonor {
+  user_id: number;
+  username: string;
+  total: number;
+  count: number;
+  lastDate: string;
+  entries: DonorEntry[];
+}
+
 const formatRupiah = (n: number) => "Rp " + n.toLocaleString("id-ID");
 
 const formatDate = (iso: string, lang: string) => {
@@ -50,6 +59,7 @@ const Donatur = () => {
   const [donorData, setDonorData] = useState<DonorApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [qrisOpen, setQrisOpen] = useState(false);
+  const [historyDonor, setHistoryDonor] = useState<GroupedDonor | null>(null);
 
   useEffect(() => {
     fetch("https://play.kotagames.web.id/api/donatur/log")
@@ -58,6 +68,41 @@ const Donatur = () => {
       .catch(() => setDonorData(null))
       .finally(() => setLoading(false));
   }, []);
+
+  const grouped = useMemo<GroupedDonor[]>(() => {
+    if (!donorData?.data) return [];
+    const map = new Map<number, GroupedDonor>();
+    for (const d of donorData.data) {
+      const g = map.get(d.user_id);
+      if (g) {
+        g.total += d.nominal;
+        g.count += 1;
+        g.entries.push(d);
+        if (new Date(d.created_at) > new Date(g.lastDate)) g.lastDate = d.created_at;
+      } else {
+        map.set(d.user_id, {
+          user_id: d.user_id,
+          username: d.username,
+          total: d.nominal,
+          count: 1,
+          lastDate: d.created_at,
+          entries: [d],
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+  }, [donorData]);
+
+  const summary = useMemo(() => {
+    if (!donorData?.data?.length) return null;
+    const qris = donorData.data.filter((d) => d.method === "qris").reduce((s, d) => s + d.nominal, 0);
+    const paypal = donorData.data.filter((d) => d.method === "paypal").reduce((s, d) => s + d.nominal, 0);
+    const total = parseInt(donorData.total || "0", 10);
+    const avg = Math.round(total / donorData.data.length);
+    const top = grouped[0];
+    return { qris, paypal, avg, top };
+  }, [donorData, grouped]);
+
 
   return (
     <div className="min-h-screen bg-background pt-[calc(1.75rem+3.5rem+1rem)] pb-8 px-4">
@@ -118,19 +163,60 @@ const Donatur = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25 }}
-            className="mt-6 grid grid-cols-2 gap-3"
+            className="mt-6 grid grid-cols-3 gap-3"
           >
             <div className="glass-card rounded-xl p-4 text-center">
               <TrendingUp className="mx-auto w-5 h-5 text-accent mb-1" />
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">{t("donatur_total_raised")}</p>
-              <p className="font-display text-lg font-bold text-foreground mt-1">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("donatur_total_raised")}</p>
+              <p className="font-display text-base font-bold text-foreground mt-1">
                 {formatRupiah(parseInt(donorData.total || "0", 10))}
               </p>
             </div>
             <div className="glass-card rounded-xl p-4 text-center">
-              <Users className="mx-auto w-5 h-5 text-primary mb-1" />
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">{t("donatur_total_donors")}</p>
-              <p className="font-display text-lg font-bold text-foreground mt-1">{donorData.jumlah_data}</p>
+              <Wallet className="mx-auto w-5 h-5 text-primary mb-1" />
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("donatur_total_donors")}</p>
+              <p className="font-display text-base font-bold text-foreground mt-1">{donorData.jumlah_data}</p>
+            </div>
+            <div className="glass-card rounded-xl p-4 text-center">
+              <Users className="mx-auto w-5 h-5 text-accent mb-1" />
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("donatur_unique_donors")}</p>
+              <p className="font-display text-base font-bold text-foreground mt-1">{grouped.length}</p>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Income Summary */}
+        {!loading && summary && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.28 }}
+            className="mt-4 glass-card rounded-2xl p-5"
+          >
+            <div className="flex items-center justify-center gap-2 text-accent mb-4">
+              <TrendingUp className="w-5 h-5" />
+              <h2 className="font-display text-base font-bold tracking-wider">{t("donatur_summary_title")}</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-lg bg-primary/10 border border-primary/20 p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("donatur_summary_qris")}</p>
+                <p className="font-display font-bold text-primary mt-1">{formatRupiah(summary.qris)}</p>
+              </div>
+              <div className="rounded-lg bg-accent/10 border border-accent/20 p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("donatur_summary_paypal")}</p>
+                <p className="font-display font-bold text-accent mt-1">{formatRupiah(summary.paypal)}</p>
+              </div>
+              <div className="rounded-lg bg-card/50 border border-border/40 p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("donatur_summary_avg")}</p>
+                <p className="font-display font-bold text-foreground mt-1">{formatRupiah(summary.avg)}</p>
+              </div>
+              <div className="rounded-lg bg-card/50 border border-border/40 p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                  <Trophy className="w-3 h-3" /> {t("donatur_summary_top")}
+                </p>
+                <p className="font-display font-bold text-foreground mt-1 truncate">{summary.top?.username}</p>
+                <p className="text-[10px] text-accent">{formatRupiah(summary.top?.total ?? 0)}</p>
+              </div>
             </div>
           </motion.div>
         )}
@@ -164,7 +250,7 @@ const Donatur = () => {
           </div>
         </motion.div>
 
-        {/* Donor List */}
+        {/* Donor List (grouped) */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -180,35 +266,85 @@ const Donatur = () => {
             <div className="glass-card rounded-xl p-8 text-center">
               <p className="text-muted-foreground text-sm">{t("donatur_loading")}</p>
             </div>
-          ) : !donorData || donorData.data.length === 0 ? (
+          ) : grouped.length === 0 ? (
             <div className="glass-card rounded-xl p-8 text-center">
               <p className="text-muted-foreground text-sm">{t("donatur_empty")}</p>
             </div>
           ) : (
             <div className="glass-card rounded-xl overflow-hidden">
               <div className="divide-y divide-border/40">
-                {donorData.data.map((d, i) => (
-                  <div key={d.id} className="flex items-center gap-3 p-3 md:p-4 hover:bg-card/40 transition-colors">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center font-display text-xs font-bold text-primary">
+                {grouped.map((g, i) => (
+                  <button
+                    key={g.user_id}
+                    onClick={() => setHistoryDonor(g)}
+                    className="w-full flex items-center gap-3 p-3 md:p-4 hover:bg-card/40 transition-colors text-left"
+                  >
+                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-display text-xs font-bold ${
+                      i === 0 ? "bg-accent/20 border border-accent/40 text-accent" : "bg-primary/15 border border-primary/30 text-primary"
+                    }`}>
                       {i + 1}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-display font-bold text-foreground truncate text-sm">{d.username}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDate(d.created_at, lang)} · {d.method.toUpperCase()}
+                      <p className="font-display font-bold text-foreground truncate text-sm flex items-center gap-2">
+                        {g.username}
+                        {g.count > 1 && (
+                          <span className="text-[10px] font-normal text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded">
+                            {g.count}× {t("donatur_times")}
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <History className="w-3 h-3" />
+                        {t("donatur_view_history")}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-display font-bold text-accent text-sm">{formatRupiah(d.nominal)}</p>
-                      <p className="text-[10px] text-muted-foreground uppercase">{d.kurs}</p>
+                      <p className="font-display font-bold text-accent text-sm">{formatRupiah(g.total)}</p>
+                      <p className="text-[10px] text-muted-foreground">{formatDate(g.lastDate, lang)}</p>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
           )}
         </motion.div>
       </div>
+
+      {/* Donor History Popup */}
+      <Dialog open={!!historyDonor} onOpenChange={(o) => !o && setHistoryDonor(null)}>
+        <DialogContent className="max-w-md p-0 overflow-hidden bg-card border-primary/30">
+          <DialogHeader className="p-5 pb-3">
+            <DialogTitle className="font-display text-center text-xl text-primary">
+              {historyDonor?.username}
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              {t("donatur_history_title")} · {historyDonor?.count}× {t("donatur_times")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="px-4 pb-5">
+            <div className="rounded-lg bg-accent/10 border border-accent/20 p-3 text-center mb-3">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("donatur_total_raised")}</p>
+              <p className="font-display text-xl font-bold text-accent mt-1">
+                {formatRupiah(historyDonor?.total ?? 0)}
+              </p>
+            </div>
+            <div className="max-h-72 overflow-y-auto rounded-lg border border-border/40 divide-y divide-border/40">
+              {historyDonor?.entries
+                .slice()
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                .map((e) => (
+                  <div key={e.id} className="flex items-center justify-between gap-2 p-3 text-sm">
+                    <div className="min-w-0">
+                      <p className="text-xs text-muted-foreground">{formatDate(e.created_at, lang)}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase">{e.method} · {e.kurs}</p>
+                    </div>
+                    <p className="font-display font-bold text-accent text-sm">{formatRupiah(e.nominal)}</p>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* QRIS Popup */}
       <Dialog open={qrisOpen} onOpenChange={setQrisOpen}>
