@@ -90,6 +90,13 @@ export const translations = {
     donatur_summary_avg: "Average per Donation",
     donatur_summary_top: "Top Donor",
     donatur_unique_donors: "Unique Donors",
+    donatur_packages_title: "DONATION PACKAGES",
+    donatur_packages_desc: "Choose a package and get instant rewards!",
+    donatur_pkg_regular: "Regular Packages",
+    donatur_pkg_firsttime: "First-time Special",
+    donatur_pkg_firsttime_note: "One-time only for new donors",
+    donatur_pkg_tokens: "Tokens",
+    donatur_pkg_gacha: "Free Gacha",
 
     // Footer
     footer_server_time: "Server Time",
