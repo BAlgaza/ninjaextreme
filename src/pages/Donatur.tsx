@@ -169,7 +169,94 @@ const Donatur = () => {
           </Button>
         </motion.div>
 
-        {/* Stats */}
+        {/* Donation Packages */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.22 }}
+          className="mt-6 glass-card rounded-2xl p-6 md:p-8"
+        >
+          <div className="flex items-center justify-center gap-2 text-accent mb-2">
+            <Gift className="w-5 h-5" />
+            <h2 className="font-display text-lg font-bold tracking-wider">{t("donatur_packages_title")}</h2>
+          </div>
+          <p className="text-center text-muted-foreground text-sm mb-5">{t("donatur_packages_desc")}</p>
+
+          {/* Regular */}
+          <p className="font-display text-xs uppercase tracking-wider text-muted-foreground mb-2">
+            {t("donatur_pkg_regular")}
+          </p>
+          <div className="space-y-2 mb-5">
+            {[
+              { price: 10000, tokens: 15000, gacha: 0 },
+              { price: 30000, tokens: 44000, gacha: 3 },
+              { price: 50000, tokens: 75000, gacha: 5 },
+              { price: 100000, tokens: 140000, gacha: 10 },
+              { price: 150000, tokens: 215000, gacha: 16 },
+            ].map((p) => (
+              <div
+                key={p.price}
+                className="flex items-center justify-between gap-3 rounded-lg bg-primary/5 border border-primary/20 p-3"
+              >
+                <p className="font-display font-bold text-primary text-sm">{formatRupiah(p.price)}</p>
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                  <span className="text-xs font-display font-bold text-foreground">
+                    {p.tokens.toLocaleString("id-ID")} {t("donatur_pkg_tokens")}
+                  </span>
+                  {p.gacha > 0 && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-display font-bold text-accent bg-accent/15 border border-accent/30 px-2 py-0.5 rounded-full">
+                      <Sparkles className="w-3 h-3" />
+                      {p.gacha}× {t("donatur_pkg_gacha")}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* First-time */}
+          <div className="flex items-center justify-between mb-2">
+            <p className="font-display text-xs uppercase tracking-wider text-accent">
+              {t("donatur_pkg_firsttime")}
+            </p>
+            <span className="text-[10px] text-muted-foreground italic">
+              {t("donatur_pkg_firsttime_note")}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {[
+              { price: 10000, tokens: 40000, extras: [] as string[] },
+              { price: 20000, tokens: 50000, extras: ["Pet Whitehand", "ChangeID"] },
+            ].map((p) => (
+              <div
+                key={p.price}
+                className="rounded-lg bg-accent/10 border border-accent/30 p-3"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-display font-bold text-accent text-sm">{formatRupiah(p.price)}</p>
+                  <span className="text-xs font-display font-bold text-foreground">
+                    {p.tokens.toLocaleString("id-ID")} {t("donatur_pkg_tokens")}
+                  </span>
+                </div>
+                {p.extras.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2 justify-end">
+                    {p.extras.map((e) => (
+                      <span
+                        key={e}
+                        className="inline-flex items-center gap-1 text-[10px] font-display font-bold text-primary bg-primary/15 border border-primary/30 px-2 py-0.5 rounded-full"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        {e}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
+
         {!loading && donorData && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
