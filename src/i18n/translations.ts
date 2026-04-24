@@ -239,6 +239,13 @@ export const translations = {
     donatur_summary_avg: "Rata-rata per Donasi",
     donatur_summary_top: "Donatur Tertinggi",
     donatur_unique_donors: "Donatur Unik",
+    donatur_packages_title: "PAKET DONASI",
+    donatur_packages_desc: "Pilih paket dan dapatkan reward langsung!",
+    donatur_pkg_regular: "Paket Reguler",
+    donatur_pkg_firsttime: "Spesial Firstime",
+    donatur_pkg_firsttime_note: "Hanya sekali untuk donatur baru",
+    donatur_pkg_tokens: "Token",
+    donatur_pkg_gacha: "Gacha Gratis",
 
     footer_server_time: "Waktu Server",
     footer_dev_address: "Alamat Developer",
