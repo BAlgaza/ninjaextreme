@@ -21,7 +21,7 @@ const Voucher = () => {
   const { t, lang } = useLanguage();
   const [kode, setKode] = useState("");
   const [karakterId, setKarakterId] = useState("");
-  const [userId, setUserId] = useState("");
+  const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -100,9 +100,9 @@ const Voucher = () => {
   const validate = (): string | null => {
     const k = kode.trim().toUpperCase();
     const cid = parseInt(karakterId, 10);
-    const uid = parseInt(userId, 10);
+    const u = username.trim();
     if (!k || !cid) return t("voucher_err_required");
-    if (!uid) return t("voucher_err_userid");
+    if (!u) return t("voucher_err_userid");
     if (k.length > 32) return t("voucher_err_too_long");
     if (!/^[A-Z0-9]+$/.test(k)) return t("voucher_err_format");
     return null;
@@ -119,7 +119,7 @@ const Voucher = () => {
     }
     setLoading(true);
     const k = kode.trim().toUpperCase();
-    const url = `${API_BASE}/api/voucher/klaim/${encodeURIComponent(k)}/${parseInt(userId, 10)}/${parseInt(karakterId, 10)}`;
+    const url = `${API_BASE}/api/voucher/klaim/${encodeURIComponent(k)}/${encodeURIComponent(username.trim())}/${parseInt(karakterId, 10)}`;
     try {
       let res: Response;
       try {
@@ -181,14 +181,14 @@ const Voucher = () => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label htmlFor="userid">{t("voucher_user_id")}</Label>
+              <Label htmlFor="username">{t("voucher_user_id")}</Label>
               <Input
-                id="userid"
-                type="number"
-                inputMode="numeric"
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 placeholder={t("voucher_user_id_ph")}
+                maxLength={30}
                 required
               />
             </div>
@@ -271,7 +271,7 @@ const Voucher = () => {
           ) : (
             <ul className="space-y-2">
               {logs.map((log, i) => {
-                const mine = userId && log.character_id === parseInt(userId, 10);
+                const mine = username && log.character_name?.toLowerCase() === username.trim().toLowerCase();
                 return (
                   <li
                     key={`${log.character_id}-${log.created_at}-${i}`}
