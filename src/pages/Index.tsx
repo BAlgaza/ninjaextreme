@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import {
   Download,
   MessageCircle,
@@ -19,7 +20,6 @@ import FeatureCard from "@/components/FeatureCard";
 import { useLanguage } from "@/i18n/LanguageContext";
 
 const DOWNLOAD_LINK = "https://drive.google.com/drive/mobile/folders/1RqCSzcesOLWkJ72-jIKmUffc6u6WPFXa";
-const REGISTER_LINK = "https://algaza.site/panel/daftar.php";
 const WHATSAPP_LINK = "https://chat.whatsapp.com/KGeNuqoy0oxCqeHVBWbtEn?mode=gi_t";
 const DISCORD_LINK = "https://discord.gg/zWBcCPYAj";
 
@@ -83,15 +83,13 @@ const Index = () => {
             transition={{ delay: 0.6 }}
             className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4"
           >
-            <a
-              href={REGISTER_LINK}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              to="/register"
               className="group inline-flex items-center gap-3 rounded-lg bg-primary px-8 py-4 font-display text-sm font-bold tracking-wider text-primary-foreground uppercase glow-primary transition-transform hover:scale-105 active:scale-95 w-full sm:w-auto justify-center"
             >
               <UserPlus className="h-5 w-5 transition-transform group-hover:-translate-y-0.5" />
               {t("home_register_now")}
-            </a>
+            </Link>
             <a
               href={DOWNLOAD_LINK}
               target="_blank"
@@ -131,10 +129,8 @@ const Index = () => {
               {t("home_register_now")}
             </h3>
             <p className="mt-2 text-sm text-muted-foreground flex-1">{t("home_register_desc")}</p>
-            <a
-              href={REGISTER_LINK}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              to="/register"
               className="mt-5 group inline-flex items-center justify-between gap-2 rounded-lg bg-primary px-5 py-3 font-display text-sm font-bold tracking-wider text-primary-foreground uppercase transition-transform hover:scale-[1.02] active:scale-95"
             >
               <span className="flex items-center gap-2">
@@ -142,7 +138,7 @@ const Index = () => {
                 {t("home_register_btn")}
               </span>
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </a>
+            </Link>
           </motion.div>
 
           {/* Community card */}
@@ -219,15 +215,13 @@ const Index = () => {
               {t("home_cta_desc")}
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-              <a
-                href={REGISTER_LINK}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                to="/register"
                 className="group inline-flex items-center gap-3 rounded-lg bg-primary px-8 py-4 font-display text-sm font-bold tracking-wider text-primary-foreground uppercase transition-transform hover:scale-105 active:scale-95 w-full sm:w-auto justify-center"
               >
                 <UserPlus className="h-5 w-5" />
                 {t("home_register_btn")}
-              </a>
+              </Link>
               <a
                 href={DOWNLOAD_LINK}
                 target="_blank"
