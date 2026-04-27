@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, RefreshCw, UserPlus, Copy, CheckCircle2 } from "lucide-react";
-import bcrypt from "bcryptjs";
+
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,11 +78,10 @@ const Register = () => {
 
     setLoading(true);
     try {
-      const hashedPassword = await bcrypt.hash(password, 10);
       const payload = {
         nama: nama.trim(),
         username: username.trim(),
-        password: hashedPassword,
+        password, // raw — server hashes with password_hash() (bcrypt)
         email: email.trim(),
       };
 
