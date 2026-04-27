@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, RefreshCw, UserPlus, Copy, CheckCircle2 } from "lucide-react";
-import bcrypt from "bcryptjs";
+
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
