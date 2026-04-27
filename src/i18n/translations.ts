@@ -5,6 +5,8 @@ export const translations = {
     nav_panel: "Panel",
     nav_toprank: "Top Rank",
     nav_donatur: "Donate",
+    nav_register: "Register",
+    nav_voucher: "Voucher",
     nav_download: "Download",
 
     // Language picker
@@ -183,6 +185,8 @@ export const translations = {
     nav_panel: "Panel",
     nav_toprank: "Top Rank",
     nav_donatur: "Donatur",
+    nav_register: "Daftar",
+    nav_voucher: "Voucher",
     nav_download: "Download",
 
     lang_title: "Pilih Bahasa",
