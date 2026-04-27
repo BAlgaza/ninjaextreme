@@ -78,11 +78,10 @@ const Register = () => {
 
     setLoading(true);
     try {
-      const hashedPassword = await bcrypt.hash(password, 10);
       const payload = {
         nama: nama.trim(),
         username: username.trim(),
-        password: hashedPassword,
+        password, // raw — server hashes with password_hash() (bcrypt)
         email: email.trim(),
       };
 
