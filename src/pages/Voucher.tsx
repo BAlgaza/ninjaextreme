@@ -21,7 +21,7 @@ const Voucher = () => {
   const { t, lang } = useLanguage();
   const [kode, setKode] = useState("");
   const [karakterId, setKarakterId] = useState("");
-  const [userId, setUserId] = useState("");
+  const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -100,9 +100,9 @@ const Voucher = () => {
   const validate = (): string | null => {
     const k = kode.trim().toUpperCase();
     const cid = parseInt(karakterId, 10);
-    const uid = parseInt(userId, 10);
+    const u = username.trim();
     if (!k || !cid) return t("voucher_err_required");
-    if (!uid) return t("voucher_err_userid");
+    if (!u) return t("voucher_err_userid");
     if (k.length > 32) return t("voucher_err_too_long");
     if (!/^[A-Z0-9]+$/.test(k)) return t("voucher_err_format");
     return null;
@@ -119,7 +119,7 @@ const Voucher = () => {
     }
     setLoading(true);
     const k = kode.trim().toUpperCase();
-    const url = `${API_BASE}/api/voucher/klaim/${encodeURIComponent(k)}/${parseInt(userId, 10)}/${parseInt(karakterId, 10)}`;
+    const url = `${API_BASE}/api/voucher/klaim/${encodeURIComponent(k)}/${encodeURIComponent(username.trim())}/${parseInt(karakterId, 10)}`;
     try {
       let res: Response;
       try {
@@ -181,14 +181,14 @@ const Voucher = () => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label htmlFor="userid">{t("voucher_user_id")}</Label>
+              <Label htmlFor="username">{t("voucher_user_id")}</Label>
               <Input
-                id="userid"
-                type="number"
-                inputMode="numeric"
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 placeholder={t("voucher_user_id_ph")}
+                maxLength={30}
                 required
               />
             </div>
@@ -271,7 +271,7 @@ const Voucher = () => {
           ) : (
             <ul className="space-y-2">
               {logs.map((log, i) => {
-                const mine = userId && log.character_id === parseInt(userId, 10);
+                const mine = username && log.character_name?.toLowerCase() === username.trim().toLowerCase();
                 return (
                   <li
                     key={`${log.character_id}-${log.created_at}-${i}`}
@@ -313,20 +313,38 @@ const Voucher = () => {
           )}
 
           {totalPages > 1 && (
-            <div className="flex flex-wrap gap-1 justify-center mt-4">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPage(p)}
-                  className={`min-w-[32px] h-8 px-2 rounded-md text-xs font-display transition-colors ${
-                    p === page
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-muted/70"
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
+            <div className="flex items-center justify-center gap-1.5 mt-4 flex-wrap">
+              <button
+                onClick={() => setPage(1)}
+                disabled={page === 1}
+                className="h-8 px-2 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                « {t("pg_first")}
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="h-8 px-3 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                ‹ {t("pg_prev")}
+              </button>
+              <span className="h-8 px-3 inline-flex items-center rounded-md text-xs font-display bg-primary text-primary-foreground">
+                {page} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="h-8 px-3 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {t("pg_next")} ›
+              </button>
+              <button
+                onClick={() => setPage(totalPages)}
+                disabled={page === totalPages}
+                className="h-8 px-2 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {t("pg_last")} »
+              </button>
             </div>
           )}
         </div>
