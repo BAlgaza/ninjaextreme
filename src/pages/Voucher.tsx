@@ -313,20 +313,38 @@ const Voucher = () => {
           )}
 
           {totalPages > 1 && (
-            <div className="flex flex-wrap gap-1 justify-center mt-4">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPage(p)}
-                  className={`min-w-[32px] h-8 px-2 rounded-md text-xs font-display transition-colors ${
-                    p === page
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-muted/70"
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
+            <div className="flex items-center justify-center gap-1.5 mt-4 flex-wrap">
+              <button
+                onClick={() => setPage(1)}
+                disabled={page === 1}
+                className="h-8 px-2 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                « {t("pg_first")}
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="h-8 px-3 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                ‹ {t("pg_prev")}
+              </button>
+              <span className="h-8 px-3 inline-flex items-center rounded-md text-xs font-display bg-primary text-primary-foreground">
+                {page} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="h-8 px-3 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {t("pg_next")} ›
+              </button>
+              <button
+                onClick={() => setPage(totalPages)}
+                disabled={page === totalPages}
+                className="h-8 px-2 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {t("pg_last")} »
+              </button>
             </div>
           )}
         </div>
