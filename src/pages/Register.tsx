@@ -92,12 +92,7 @@ const Register = () => {
           body: JSON.stringify(payload),
         });
 
-      let res: Response;
-      try {
-        res = await doFetch(API_URL);
-      } catch {
-        res = await doFetch(`https://corsproxy.io/?${encodeURIComponent(API_URL)}`);
-      }
+      const res = await doFetch(API_URL);
 
       const data = await res.json().catch(() => null);
       if (!res.ok || !data) {
