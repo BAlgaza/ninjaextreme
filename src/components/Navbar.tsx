@@ -24,6 +24,7 @@ const Navbar = () => {
     { to: "/", label: t("nav_home") },
     { to: "/register", label: t("nav_register") },
     { to: "/voucher", label: t("nav_voucher") },
+    { to: "/clans", label: t("nav_clans") },
     { to: "/donatur", label: t("nav_donatur") },
   ];
 
