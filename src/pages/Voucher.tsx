@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const API_BASE = "https://play.kotagames.web.id";
-const proxied = (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`;
 
 interface LogItem {
   character_id: number;
@@ -67,13 +66,7 @@ const Voucher = () => {
     setLogsError(false);
     const url = `${API_BASE}/api/voucher/log?page=${page}&limit=8&sort=${sort}`;
     try {
-      let res: Response;
-      try {
-        res = await fetch(url);
-        if (!res.ok) throw new Error();
-      } catch {
-        res = await fetch(proxied(url));
-      }
+      const res = await fetch(url);
       const json = await res.json();
       if (!json?.status || !Array.isArray(json.data)) {
         setLogs([]);
@@ -121,13 +114,7 @@ const Voucher = () => {
     const k = kode.trim().toUpperCase();
     const url = `${API_BASE}/api/voucher/klaim/${encodeURIComponent(k)}/${encodeURIComponent(username.trim())}/${parseInt(karakterId, 10)}`;
     try {
-      let res: Response;
-      try {
-        res = await fetch(url, { headers: { "User-Agent": "NinjaPanel/1.0" } });
-        if (!res.ok) throw new Error();
-      } catch {
-        res = await fetch(proxied(url));
-      }
+      const res = await fetch(url);
       const data = await res.json().catch(() => null);
       if (!data || typeof data.status === "undefined") {
         setErrorMsg(lang === "id" ? "Response API tidak valid." : "Invalid API response.");
