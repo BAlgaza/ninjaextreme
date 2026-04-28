@@ -25,6 +25,7 @@ const Navbar = () => {
     { to: "/register", label: t("nav_register") },
     { to: "/voucher", label: t("nav_voucher") },
     { to: "/clans", label: t("nav_clans") },
+    { to: "/statistik", label: t("nav_stats") },
     { to: "/donatur", label: t("nav_donatur") },
   ];
 
