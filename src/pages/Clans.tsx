@@ -133,7 +133,9 @@ const Clans = () => {
       const r = await fetch(`${API_BASE}/api/klan/lihat/${clan.id}/members`);
       const data = await r.json();
       if (data?.status && Array.isArray(data.members)) {
-        const sorted = [...data.members].sort((a: Member, b: Member) => b.reputation - a.reputation);
+        const sorted = [...data.members].sort(
+          (a: Member, b: Member) => (b.stamina ?? 0) - (a.stamina ?? 0),
+        );
         setMembers(sorted);
       }
     } catch {
@@ -340,33 +342,53 @@ const Clans = () => {
                         <TableHead className="w-10">#</TableHead>
                         <TableHead>{t("clans_member_name")}</TableHead>
                         <TableHead className="text-center">{t("clans_member_level")}</TableHead>
+                        <TableHead className="min-w-[140px]">{t("clans_member_stamina")}</TableHead>
                         <TableHead className="text-right">{t("clans_member_donated")}</TableHead>
                         <TableHead className="text-right">{t("clans_member_reputation")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {members.map((m, i) => (
-                        <TableRow key={m.id}>
-                          <TableCell className="text-muted-foreground text-xs">{i + 1}</TableCell>
-                          <TableCell>
-                            <div className="font-medium text-foreground flex items-center gap-1.5">
-                              {m.role >= 2 && <Crown className="w-3 h-3 text-yellow-400" />}
-                              {m.name}
-                            </div>
-                            <div className="text-[10px] text-muted-foreground">
-                              ID: {m.character_id} · {roleLabel(m.role)}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center font-mono text-primary">{m.level}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="text-yellow-400 text-xs">{fmtNum(m.donated_golds)}g</div>
-                            <div className="text-accent text-[10px]">{fmtNum(m.donated_tokens)}t</div>
-                          </TableCell>
-                          <TableCell className="text-right font-bold text-foreground">
-                            {fmtNum(m.reputation)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {members.map((m, i) => {
+                        const max = m.max_stamina || 1;
+                        const pct = Math.min(100, Math.max(0, (m.stamina / max) * 100));
+                        const barColor =
+                          pct > 66 ? "bg-primary" : pct > 33 ? "bg-yellow-400" : "bg-destructive";
+                        return (
+                          <TableRow key={m.id}>
+                            <TableCell className="text-muted-foreground text-xs">{i + 1}</TableCell>
+                            <TableCell>
+                              <div className="font-medium text-foreground flex items-center gap-1.5">
+                                {m.role >= 2 && <Crown className="w-3 h-3 text-yellow-400" />}
+                                {m.name}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground">
+                                ID: {m.character_id} · {roleLabel(m.role)}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center font-mono text-primary">{m.level}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden min-w-[60px]">
+                                  <div
+                                    className={`h-full ${barColor} transition-all`}
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                                <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">
+                                  {m.stamina}/{m.max_stamina}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="text-yellow-400 text-xs">{fmtNum(m.donated_golds)}g</div>
+                              <div className="text-accent text-[10px]">{fmtNum(m.donated_tokens)}t</div>
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-foreground">
+                              {fmtNum(m.reputation)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
