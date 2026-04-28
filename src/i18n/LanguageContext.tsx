@@ -1,15 +1,8 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { useState, ReactNode } from "react";
 import { translations, Lang, TranslationKey } from "./translations";
+import { LanguageContext } from "./language-context";
 
-interface LanguageContextType {
-  lang: Lang;
-  setLang: (lang: Lang) => void;
-  t: (key: TranslationKey) => string;
-  showPicker: boolean;
-  setShowPicker: (v: boolean) => void;
-}
-
-const LanguageContext = createContext<LanguageContextType | null>(null);
+export { useLanguage } from "./useLanguage";
 
 function getCookie(name: string): string | null {
   if (typeof document === "undefined") return null;
@@ -40,11 +33,4 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </LanguageContext.Provider>
   );
-};
-
-// eslint-disable-next-line react-refresh/only-export-components
-export const useLanguage = () => {
-  const ctx = useContext(LanguageContext);
-  if (!ctx) throw new Error("useLanguage must be used within LanguageProvider");
-  return ctx;
 };
