@@ -13,6 +13,7 @@ import Donatur from "./pages/Donatur.tsx";
 import Register from "./pages/Register.tsx";
 import Voucher from "./pages/Voucher.tsx";
 import Clans from "./pages/Clans.tsx";
+import Statistik from "./pages/Statistik.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/register" element={<Register />} />
             <Route path="/voucher" element={<Voucher />} />
             <Route path="/clans" element={<Clans />} />
+            <Route path="/statistik" element={<Statistik />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
