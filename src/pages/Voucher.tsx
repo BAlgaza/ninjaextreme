@@ -112,7 +112,7 @@ const Voucher = () => {
     }
     setLoading(true);
     const k = kode.trim().toUpperCase();
-    const url = `${API_BASE}/api/voucher/klaim/${encodeURIComponent(k)}/${encodeURIComponent(username.trim())}/${parseInt(karakterId, 10)}`;
+    const url = `${API_BASE}/api/voucher/claim/${encodeURIComponent(k)}/${encodeURIComponent(username.trim())}/${parseInt(karakterId, 10)}`;
     try {
       const res = await fetch(url);
       const data = await res.json().catch(() => null);
@@ -121,7 +121,10 @@ const Voucher = () => {
       } else if (!data.status) {
         setErrorMsg(data.message || (lang === "id" ? "Gagal klaim voucher." : "Failed to claim voucher."));
       } else {
-        setSuccessMsg(data.message || (lang === "id" ? "Voucher berhasil diklaim!" : "Voucher claimed successfully!"));
+        const rewards: string[] = Array.isArray(data.reward) ? data.reward : [];
+        const rewardStr = rewards.map(formatReward).join(", ");
+        const baseMsg = data.message || (lang === "id" ? "Voucher berhasil diklaim!" : "Voucher claimed successfully!");
+        setSuccessMsg(rewardStr ? `${baseMsg} — ${rewardStr}` : baseMsg);
         setKode("");
         loadLogs();
       }
