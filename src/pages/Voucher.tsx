@@ -55,8 +55,36 @@ const Voucher = () => {
     if (x.includes("gold")) return "bg-yellow-500/20 text-yellow-400 border-yellow-500/40";
     if (x.includes("token")) return "bg-emerald-500/20 text-emerald-400 border-emerald-500/40";
     if (x.includes("tp")) return "bg-cyan-500/20 text-cyan-400 border-cyan-500/40";
+    if (x.startsWith("wpn") || x.startsWith("weapon")) return "bg-orange-500/20 text-orange-400 border-orange-500/40";
+    if (x.startsWith("set") || x.includes("armor") || x.includes("baju")) return "bg-purple-500/20 text-purple-400 border-purple-500/40";
     if (x.includes("skill")) return "bg-primary/20 text-primary border-primary/40";
     return "bg-muted text-muted-foreground border-border";
+  };
+
+  const formatReward = (raw: string): string => {
+    if (!raw) return raw;
+    const r = String(raw).trim();
+    const lower = r.toLowerCase();
+    // tokens_5000 / token_5000 / gold_10000
+    const m = lower.match(/^(tokens?|gold|tp|exp|xp)[_\-:\s]+(\d+)$/i);
+    if (m) {
+      const kind = m[1].toLowerCase();
+      const amt = Number(m[2]).toLocaleString();
+      if (kind.startsWith("token")) return `Tokens ${amt}`;
+      if (kind === "gold") return `Gold ${amt}`;
+      if (kind === "tp") return `TP ${amt}`;
+      return `${kind.toUpperCase()} ${amt}`;
+    }
+    // wpn_xxx → Weapon xxx
+    const w = r.match(/^wpn[_\-:\s]+(.+)$/i);
+    if (w) return `Weapon ${w[1]}`;
+    // set_xxx → Set xxx (armor)
+    const s = r.match(/^set[_\-:\s]+(.+)$/i);
+    if (s) return `Set ${s[1]}`;
+    // skill_xxx → Skill xxx
+    const sk = r.match(/^skill[_\-:\s]+(.+)$/i);
+    if (sk) return `Skill ${sk[1]}`;
+    return r;
   };
 
   const loadLogs = useCallback(async () => {
@@ -112,7 +140,7 @@ const Voucher = () => {
     }
     setLoading(true);
     const k = kode.trim().toUpperCase();
-    const url = `${API_BASE}/api/voucher/klaim/${encodeURIComponent(k)}/${encodeURIComponent(username.trim())}/${parseInt(karakterId, 10)}`;
+    const url = `${API_BASE}/api/voucher/claim/${encodeURIComponent(k)}/${encodeURIComponent(username.trim())}/${parseInt(karakterId, 10)}`;
     try {
       const res = await fetch(url);
       const data = await res.json().catch(() => null);
@@ -121,7 +149,10 @@ const Voucher = () => {
       } else if (!data.status) {
         setErrorMsg(data.message || (lang === "id" ? "Gagal klaim voucher." : "Failed to claim voucher."));
       } else {
-        setSuccessMsg(data.message || (lang === "id" ? "Voucher berhasil diklaim!" : "Voucher claimed successfully!"));
+        const rewards: string[] = Array.isArray(data.reward) ? data.reward : [];
+        const rewardStr = rewards.map(formatReward).join(", ");
+        const baseMsg = data.message || (lang === "id" ? "Voucher berhasil diklaim!" : "Voucher claimed successfully!");
+        setSuccessMsg(rewardStr ? `${baseMsg} — ${rewardStr}` : baseMsg);
         setKode("");
         loadLogs();
       }
@@ -288,7 +319,7 @@ const Voucher = () => {
                             key={j}
                             className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${rewardClass(r)}`}
                           >
-                            {r}
+                            {formatReward(r)}
                           </span>
                         ))}
                       </div>
