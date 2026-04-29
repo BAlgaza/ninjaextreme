@@ -319,7 +319,7 @@ const Voucher = () => {
                             key={j}
                             className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${rewardClass(r)}`}
                           >
-                            {r}
+                            {formatReward(r)}
                           </span>
                         ))}
                       </div>
