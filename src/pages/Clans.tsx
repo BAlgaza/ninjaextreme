@@ -257,9 +257,9 @@ const Clans = () => {
                               {clan.is_bleeding && (
                                 <span
                                   title={t("clans_bleeding")}
-                                  className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-destructive/20 text-destructive border border-destructive/40"
+                                  className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-destructive/30 text-destructive border border-destructive/60 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.6)]"
                                 >
-                                  <Droplet className="w-2.5 h-2.5" />
+                                  <Droplet className="w-2.5 h-2.5 animate-bounce" />
                                   {t("clans_bleeding")}
                                 </span>
                               )}
