@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Shield, Crown, Users, Coins, Swords, Trophy, Loader2, X, Building2 } from "lucide-react";
+import { Shield, Crown, Users, Coins, Swords, Trophy, Loader2, X, Building2, Droplet, ShieldCheck, Ban } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -20,6 +20,11 @@ interface Clan {
   gold: number;
   tokens: number;
   buildings: string;
+  total_members?: number;
+  alive_members?: number;
+  is_bleeding?: boolean;
+  is_protected?: boolean;
+  attackable?: boolean;
   created_at: string;
   updated_at: string;
 }
