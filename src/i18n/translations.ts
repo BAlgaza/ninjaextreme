@@ -79,6 +79,9 @@ export const translations = {
     clans_role_master: "Master",
     clans_role_elder: "Elder",
     clans_role_member: "Member",
+    clans_bleeding: "BLEEDING",
+    clans_protected: "PROTECTED",
+    clans_no_reward: "NO REWARD",
 
     // Language picker
     lang_title: "Choose Language",
@@ -361,6 +364,9 @@ export const translations = {
     clans_role_master: "Master",
     clans_role_elder: "Elder",
     clans_role_member: "Member",
+    clans_bleeding: "BLEEDING",
+    clans_protected: "DILINDUNGI",
+    clans_no_reward: "TANPA HADIAH",
 
     lang_title: "Pilih Bahasa",
     lang_desc: "Pilih bahasa yang kamu inginkan",

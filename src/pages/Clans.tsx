@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Shield, Crown, Users, Coins, Swords, Trophy, Loader2, X, Building2 } from "lucide-react";
+import { Shield, Crown, Users, Coins, Swords, Trophy, Loader2, X, Building2, Droplet, ShieldCheck, Ban } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -20,6 +20,11 @@ interface Clan {
   gold: number;
   tokens: number;
   buildings: string;
+  total_members?: number;
+  alive_members?: number;
+  is_bleeding?: boolean;
+  is_protected?: boolean;
+  attackable?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -229,16 +234,50 @@ const Clans = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: Math.min(idx * 0.03, 0.4) }}
                   >
-                    <Card className="glass-card border-border/50 p-4 hover:border-primary/40 transition-colors">
-                      <div className="flex flex-col md:flex-row md:items-center gap-4">
+                    <Card
+                      className={`glass-card border-border/50 p-4 hover:border-primary/40 transition-colors relative overflow-hidden ${
+                        clan.is_bleeding ? "border-destructive/60 animate-pulse" : ""
+                      }`}
+                    >
+                      {clan.is_bleeding && (
+                        <div className="absolute inset-0 bg-destructive/5 pointer-events-none" />
+                      )}
+                      <div className="relative flex flex-col md:flex-row md:items-center gap-4">
                         {/* Rank + Name */}
                         <div className="flex items-center gap-3 md:w-64">
                           <div className={`font-display text-2xl font-bold w-10 text-center ${rankColor}`}>
                             #{idx + 1}
                           </div>
-                          <div className="min-w-0">
-                            <div className="font-display text-lg font-bold text-foreground truncate">
+                          <div className="min-w-0 flex-1">
+                            <div className="font-display text-lg font-bold text-foreground truncate flex items-center gap-1.5">
                               {clan.name}
+                              {clan.is_bleeding && (
+                                <span
+                                  title={t("clans_bleeding")}
+                                  className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-destructive/20 text-destructive border border-destructive/40"
+                                >
+                                  <Droplet className="w-2.5 h-2.5" />
+                                  {t("clans_bleeding")}
+                                </span>
+                              )}
+                              {clan.is_protected && (
+                                <span
+                                  title={t("clans_protected")}
+                                  className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/40"
+                                >
+                                  <ShieldCheck className="w-2.5 h-2.5" />
+                                  {t("clans_protected")}
+                                </span>
+                              )}
+                              {!clan.is_protected && clan.attackable === true && (
+                                <span
+                                  title={t("clans_no_reward")}
+                                  className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border"
+                                >
+                                  <Ban className="w-2.5 h-2.5" />
+                                  {t("clans_no_reward")}
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center gap-1 text-xs text-muted-foreground truncate">
                               <Crown className="w-3 h-3 text-yellow-400 shrink-0" />
@@ -267,7 +306,17 @@ const Clans = () => {
                             <Users className="w-3.5 h-3.5 text-accent shrink-0" />
                             <div>
                               <div className="text-muted-foreground">{t("clans_members")}</div>
-                              <div className="font-bold text-foreground">{clan.max_members}</div>
+                              <div className="font-bold text-foreground">
+                                {clan.alive_members != null && clan.total_members != null ? (
+                                  <>
+                                    <span className="text-primary">{clan.alive_members}</span>
+                                    <span className="text-muted-foreground">/{clan.total_members}</span>
+                                    <span className="text-[10px] text-muted-foreground">/{clan.max_members}</span>
+                                  </>
+                                ) : (
+                                  <>{clan.total_members ?? clan.max_members}/{clan.max_members}</>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
