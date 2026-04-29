@@ -236,11 +236,14 @@ const Clans = () => {
                   >
                     <Card
                       className={`glass-card border-border/50 p-4 hover:border-primary/40 transition-colors relative overflow-hidden ${
-                        clan.is_bleeding ? "border-destructive/60 animate-pulse" : ""
+                        clan.is_bleeding ? "clan-bleeding border-destructive/70" : ""
                       }`}
                     >
                       {clan.is_bleeding && (
-                        <div className="absolute inset-0 bg-destructive/5 pointer-events-none" />
+                        <>
+                          <div className="absolute inset-0 bg-gradient-to-r from-destructive/15 via-destructive/5 to-transparent pointer-events-none animate-pulse" />
+                          <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_30px_rgba(239,68,68,0.35)]" />
+                        </>
                       )}
                       <div className="relative flex flex-col md:flex-row md:items-center gap-4">
                         {/* Rank + Name */}
@@ -267,15 +270,6 @@ const Clans = () => {
                                 >
                                   <ShieldCheck className="w-2.5 h-2.5" />
                                   {t("clans_protected")}
-                                </span>
-                              )}
-                              {!clan.is_protected && clan.attackable === true && (
-                                <span
-                                  title={t("clans_no_reward")}
-                                  className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border"
-                                >
-                                  <Ban className="w-2.5 h-2.5" />
-                                  {t("clans_no_reward")}
                                 </span>
                               )}
                             </div>
