@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Ticket, Gift, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
+import { Ticket, Gift, RefreshCw, CheckCircle2, AlertCircle, ChevronDown } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { useSession, type SessionCharacter } from "@/hooks/useSession";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,9 +19,9 @@ interface LogItem {
 
 const Voucher = () => {
   const { t, lang } = useLanguage();
+  const { data: sessionData } = useSession();
   const [kode, setKode] = useState("");
-  const [karakterId, setKarakterId] = useState("");
-  const [username, setUsername] = useState("");
+  const [selectedChar, setSelectedChar] = useState<SessionCharacter | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -32,6 +33,13 @@ const Voucher = () => {
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsError, setLogsError] = useState(false);
   const isLoadingRef = useRef(false);
+
+  // Auto-select first character
+  useEffect(() => {
+    if (sessionData?.characters?.length && !selectedChar) {
+      setSelectedChar(sessionData.characters[0]);
+    }
+  }, [sessionData, selectedChar]);
 
   useEffect(() => {
     document.title = `${t("voucher_title")} — Ninja's Extreme`;
@@ -65,7 +73,6 @@ const Voucher = () => {
     if (!raw) return raw;
     const r = String(raw).trim();
     const lower = r.toLowerCase();
-    // tokens_5000 / token_5000 / gold_10000
     const m = lower.match(/^(tokens?|gold|tp|exp|xp)[_\-:\s]+(\d+)$/i);
     if (m) {
       const kind = m[1].toLowerCase();
@@ -75,13 +82,10 @@ const Voucher = () => {
       if (kind === "tp") return `TP ${amt}`;
       return `${kind.toUpperCase()} ${amt}`;
     }
-    // wpn_xxx → Weapon xxx
     const w = r.match(/^wpn[_\-:\s]+(.+)$/i);
     if (w) return `Weapon ${w[1]}`;
-    // set_xxx → Set xxx (armor)
     const s = r.match(/^set[_\-:\s]+(.+)$/i);
     if (s) return `Set ${s[1]}`;
-    // skill_xxx → Skill xxx
     const sk = r.match(/^skill[_\-:\s]+(.+)$/i);
     if (sk) return `Skill ${sk[1]}`;
     return r;
@@ -120,10 +124,8 @@ const Voucher = () => {
 
   const validate = (): string | null => {
     const k = kode.trim().toUpperCase();
-    const cid = parseInt(karakterId, 10);
-    const u = username.trim();
-    if (!k || !cid) return t("voucher_err_required");
-    if (!u) return t("voucher_err_userid");
+    if (!k) return t("voucher_err_required");
+    if (!selectedChar) return lang === "id" ? "Pilih karakter terlebih dahulu." : "Please select a character.";
     if (k.length > 32) return t("voucher_err_too_long");
     if (!/^[A-Z0-9]+$/.test(k)) return t("voucher_err_format");
     return null;
@@ -138,9 +140,10 @@ const Voucher = () => {
       setErrorMsg(err);
       return;
     }
+    if (!selectedChar || !sessionData) return;
     setLoading(true);
     const k = kode.trim().toUpperCase();
-    const url = `${API_BASE}/api/voucher/claim/${encodeURIComponent(k)}/${encodeURIComponent(username.trim())}/${parseInt(karakterId, 10)}`;
+    const url = `${API_BASE}/api/voucher/claim/${encodeURIComponent(k)}/${encodeURIComponent(sessionData.user.username)}/${selectedChar.id}`;
     try {
       const res = await fetch(url);
       const data = await res.json().catch(() => null);
@@ -163,14 +166,12 @@ const Voucher = () => {
     }
   };
 
+  const characters = sessionData?.characters || [];
+
   return (
     <main className="min-h-screen pt-32 pb-16 px-4">
       <div className="container max-w-3xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
           <h1 className="font-display text-3xl md:text-4xl font-bold text-primary tracking-wider flex items-center justify-center gap-3">
             <Ticket className="w-8 h-8" />
             {t("voucher_title")}
@@ -185,6 +186,34 @@ const Voucher = () => {
           onSubmit={handleSubmit}
           className="glass-card p-6 rounded-xl border border-border space-y-4 mb-8"
         >
+          {/* Character Picker */}
+          <div className="space-y-1.5">
+            <Label>{lang === "id" ? "Pilih Karakter" : "Select Character"}</Label>
+            <div className="grid gap-2">
+              {characters.map((char) => (
+                <button
+                  key={char.id}
+                  type="button"
+                  onClick={() => setSelectedChar(char)}
+                  className={`flex items-center justify-between p-3 rounded-lg border text-left transition-all ${
+                    selectedChar?.id === char.id
+                      ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                      : "border-border bg-muted/30 hover:bg-muted/50"
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <span className="font-display text-sm font-bold text-foreground">{char.name}</span>
+                    <span className="text-xs text-muted-foreground ml-2">Lv.{char.level}</span>
+                    <span className="text-xs text-muted-foreground ml-1">· ID: {char.id}</span>
+                  </div>
+                  {selectedChar?.id === char.id && (
+                    <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="kode">{t("voucher_code")}</Label>
             <Input
@@ -196,32 +225,6 @@ const Voucher = () => {
               required
               className="font-mono tracking-wider uppercase"
             />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="username">{t("voucher_user_id")}</Label>
-              <Input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder={t("voucher_user_id_ph")}
-                maxLength={30}
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="charid">{t("voucher_char_id")}</Label>
-              <Input
-                id="charid"
-                type="number"
-                inputMode="numeric"
-                value={karakterId}
-                onChange={(e) => setKarakterId(e.target.value)}
-                placeholder={t("voucher_char_id_ph")}
-                required
-              />
-            </div>
           </div>
 
           {successMsg && (
@@ -237,11 +240,7 @@ const Voucher = () => {
             </div>
           )}
 
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full h-11 font-display tracking-wider gap-2 glow-primary"
-          >
+          <Button type="submit" disabled={loading} className="w-full h-11 font-display tracking-wider gap-2 glow-primary">
             <Gift className="w-4 h-4" />
             {loading ? t("voucher_processing") : t("voucher_submit")}
           </Button>
@@ -249,9 +248,7 @@ const Voucher = () => {
 
         <div className="glass-card p-6 rounded-xl border border-border">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <h2 className="font-display text-lg text-primary tracking-wider">
-              {t("voucher_logs_title")}
-            </h2>
+            <h2 className="font-display text-lg text-primary tracking-wider">{t("voucher_logs_title")}</h2>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => { setPage(1); setSort("desc"); }}
@@ -289,7 +286,7 @@ const Voucher = () => {
           ) : (
             <ul className="space-y-2">
               {logs.map((log, i) => {
-                const mine = username && log.character_name?.toLowerCase() === username.trim().toLowerCase();
+                const mine = selectedChar && log.character_id === selectedChar.id;
                 return (
                   <li
                     key={`${log.character_id}-${log.created_at}-${i}`}
@@ -315,10 +312,7 @@ const Voucher = () => {
                     {log.rewards?.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-2">
                         {log.rewards.map((r, j) => (
-                          <span
-                            key={j}
-                            className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${rewardClass(r)}`}
-                          >
+                          <span key={j} className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${rewardClass(r)}`}>
                             {formatReward(r)}
                           </span>
                         ))}
@@ -332,35 +326,19 @@ const Voucher = () => {
 
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-1.5 mt-4 flex-wrap">
-              <button
-                onClick={() => setPage(1)}
-                disabled={page === 1}
-                className="h-8 px-2 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
+              <button onClick={() => setPage(1)} disabled={page === 1} className="h-8 px-2 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed">
                 « {t("pg_first")}
               </button>
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="h-8 px-3 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="h-8 px-3 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed">
                 ‹ {t("pg_prev")}
               </button>
               <span className="h-8 px-3 inline-flex items-center rounded-md text-xs font-display bg-primary text-primary-foreground">
                 {page} / {totalPages}
               </span>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="h-8 px-3 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
+              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="h-8 px-3 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed">
                 {t("pg_next")} ›
               </button>
-              <button
-                onClick={() => setPage(totalPages)}
-                disabled={page === totalPages}
-                className="h-8 px-2 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
+              <button onClick={() => setPage(totalPages)} disabled={page === totalPages} className="h-8 px-2 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed">
                 {t("pg_last")} »
               </button>
             </div>
