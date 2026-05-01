@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Ticket, Gift, RefreshCw, CheckCircle2, AlertCircle, ChevronDown } from "lucide-react";
+import { Ticket, Gift, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useSession, type SessionCharacter } from "@/hooks/useSession";
 import { Button } from "@/components/ui/button";
