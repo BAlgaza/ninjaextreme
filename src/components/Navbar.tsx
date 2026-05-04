@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Globe, Download, Monitor, Smartphone, User } from "lucide-react";
+import { Menu, X, Globe, Download, Monitor, Smartphone, User, ShieldCheck } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
-import { getSession } from "@/hooks/useSession";
+import { getSession, useSession } from "@/hooks/useSession";
 import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
