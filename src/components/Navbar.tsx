@@ -106,6 +106,7 @@ const Navbar = () => {
                     }`}
                   >
                     {l.to === "/profile" && <User className="w-4 h-4 inline mr-1" />}
+                    {l.to === "/admin" && <ShieldCheck className="w-4 h-4 inline mr-1" />}
                     {l.label}
                   </Link>
                 ))}
