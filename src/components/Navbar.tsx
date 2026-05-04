@@ -18,6 +18,8 @@ const Navbar = () => {
   const [downloadOpen, setDownloadOpen] = useState(false);
 
   const isLoggedIn = !!getSession();
+  const { data: sessionData } = useSession();
+  const isAdmin = sessionData?.admin || false;
 
   const links = [
     { to: "/", label: t("nav_home") },
@@ -27,6 +29,7 @@ const Navbar = () => {
     { to: "/statistik", label: t("nav_stats") },
     { to: "/donatur", label: t("nav_donatur") },
     ...(isLoggedIn ? [{ to: "/profile", label: lang === "id" ? "Profil" : "Profile" }] : []),
+    ...(isAdmin ? [{ to: "/admin", label: "Admin" }] : []),
   ];
 
   const isActive = (path: string) => location.pathname === path;
