@@ -53,6 +53,7 @@ export interface SessionCharacter {
 export interface SessionData {
   user: SessionUser;
   characters: SessionCharacter[];
+  admin: boolean;
   donatur: boolean;
   donatur_nom: number;
 }
