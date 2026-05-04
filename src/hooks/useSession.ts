@@ -53,6 +53,7 @@ export interface SessionCharacter {
 export interface SessionData {
   user: SessionUser;
   characters: SessionCharacter[];
+  admin: boolean;
   donatur: boolean;
   donatur_nom: number;
 }
@@ -106,6 +107,7 @@ export function useSession() {
         setData({
           user: json.user,
           characters: json.characters || [],
+          admin: json.admin || false,
           donatur: json.donatur || false,
           donatur_nom: json.donatur_nom || 0,
         });

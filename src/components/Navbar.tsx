@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Globe, Download, Monitor, Smartphone, User } from "lucide-react";
+import { Menu, X, Globe, Download, Monitor, Smartphone, User, ShieldCheck } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
-import { getSession } from "@/hooks/useSession";
+import { getSession, useSession } from "@/hooks/useSession";
 import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -18,6 +18,8 @@ const Navbar = () => {
   const [downloadOpen, setDownloadOpen] = useState(false);
 
   const isLoggedIn = !!getSession();
+  const { data: sessionData } = useSession();
+  const isAdmin = sessionData?.admin || false;
 
   const links = [
     { to: "/", label: t("nav_home") },
@@ -27,6 +29,7 @@ const Navbar = () => {
     { to: "/statistik", label: t("nav_stats") },
     { to: "/donatur", label: t("nav_donatur") },
     ...(isLoggedIn ? [{ to: "/profile", label: lang === "id" ? "Profil" : "Profile" }] : []),
+    ...(isAdmin ? [{ to: "/admin", label: "Admin" }] : []),
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -52,6 +55,7 @@ const Navbar = () => {
                 }`}
               >
                 {l.to === "/profile" && <User className="w-3 h-3 inline mr-1" />}
+                {l.to === "/admin" && <ShieldCheck className="w-3 h-3 inline mr-1" />}
                 {l.label}
               </Link>
             ))}
@@ -102,6 +106,7 @@ const Navbar = () => {
                     }`}
                   >
                     {l.to === "/profile" && <User className="w-4 h-4 inline mr-1" />}
+                    {l.to === "/admin" && <ShieldCheck className="w-4 h-4 inline mr-1" />}
                     {l.label}
                   </Link>
                 ))}
