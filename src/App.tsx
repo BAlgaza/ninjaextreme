@@ -17,6 +17,7 @@ import Clans from "./pages/Clans.tsx";
 import Statistik from "./pages/Statistik.tsx";
 import Auth from "./pages/Auth.tsx";
 import Profile from "./pages/Profile.tsx";
+import Admin from "./pages/Admin.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/statistik" element={<LoginGuard><Statistik /></LoginGuard>} />
             <Route path="/auth/:sesi" element={<Auth />} />
             <Route path="/profile" element={<LoginGuard><Profile /></LoginGuard>} />
+            <Route path="/admin" element={<LoginGuard><Admin /></LoginGuard>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
