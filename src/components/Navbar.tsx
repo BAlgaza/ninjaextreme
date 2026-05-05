@@ -21,16 +21,18 @@ const Navbar = () => {
   const { data: sessionData } = useSession();
   const isAdmin = sessionData?.admin || false;
 
-  const links = [
-    { to: "/", label: t("nav_home") },
-    { to: "/register", label: t("nav_register") },
-    { to: "/voucher", label: t("nav_voucher") },
-    { to: "/clans", label: t("nav_clans") },
-    { to: "/statistik", label: t("nav_stats") },
-    { to: "/donatur", label: t("nav_donatur") },
-    ...(isLoggedIn ? [{ to: "/profile", label: lang === "id" ? "Profil" : "Profile" }] : []),
-    ...(isAdmin ? [{ to: "/admin", label: "Admin" }] : []),
-  ];
+  const links = isLoggedIn
+    ? [
+        { to: "/", label: t("nav_home") },
+        { to: "/profile", label: lang === "id" ? "Profil" : "Profile" },
+        { to: "/statistik", label: t("nav_stats") },
+        { to: "/donatur", label: t("nav_donatur") },
+        ...(isAdmin ? [{ to: "/admin", label: "Admin" }] : []),
+      ]
+    : [
+        { to: "/", label: t("nav_home") },
+        { to: "/register", label: t("nav_register") },
+      ];
 
   const isActive = (path: string) => location.pathname === path;
   const toggleLang = () => setLang(lang === "en" ? "id" : "en");

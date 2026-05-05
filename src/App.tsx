@@ -12,8 +12,6 @@ import LoginGuard from "@/components/LoginGuard";
 import Index from "./pages/Index.tsx";
 import Donatur from "./pages/Donatur.tsx";
 import Register from "./pages/Register.tsx";
-import Voucher from "./pages/Voucher.tsx";
-import Clans from "./pages/Clans.tsx";
 import Statistik from "./pages/Statistik.tsx";
 import Auth from "./pages/Auth.tsx";
 import Profile from "./pages/Profile.tsx";
@@ -36,8 +34,6 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/donatur" element={<Donatur />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/voucher" element={<LoginGuard><Voucher /></LoginGuard>} />
-            <Route path="/clans" element={<LoginGuard><Clans /></LoginGuard>} />
             <Route path="/statistik" element={<LoginGuard><Statistik /></LoginGuard>} />
             <Route path="/auth/:sesi" element={<Auth />} />
             <Route path="/profile" element={<LoginGuard><Profile /></LoginGuard>} />

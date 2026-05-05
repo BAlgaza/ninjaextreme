@@ -17,7 +17,11 @@ interface LogItem {
   created_at: string;
 }
 
-const Voucher = () => {
+interface VoucherProps {
+  embedded?: boolean;
+}
+
+const Voucher = ({ embedded }: VoucherProps) => {
   const { t, lang } = useLanguage();
   const { data: sessionData } = useSession();
   const [kode, setKode] = useState("");
@@ -34,7 +38,6 @@ const Voucher = () => {
   const [logsError, setLogsError] = useState(false);
   const isLoadingRef = useRef(false);
 
-  // Auto-select first character
   useEffect(() => {
     if (sessionData?.characters?.length && !selectedChar) {
       setSelectedChar(sessionData.characters[0]);
@@ -42,8 +45,10 @@ const Voucher = () => {
   }, [sessionData, selectedChar]);
 
   useEffect(() => {
-    document.title = `${t("voucher_title")} — Ninja's Extreme`;
-  }, [t]);
+    if (!embedded) {
+      document.title = `${t("voucher_title")} — Ninja's Extreme`;
+    }
+  }, [t, embedded]);
 
   const timeAgo = useCallback(
     (s: string) => {
@@ -88,6 +93,8 @@ const Voucher = () => {
     if (s) return `Set ${s[1]}`;
     const sk = r.match(/^skill[_\-:\s]+(.+)$/i);
     if (sk) return `Skill ${sk[1]}`;
+    const pet = r.match(/^pet[_\-:\s]+(.+)$/i);
+    if (pet) return `Pet ${pet[1]}`;
     return r;
   };
 
@@ -168,6 +175,177 @@ const Voucher = () => {
 
   const characters = sessionData?.characters || [];
 
+  const content = (
+    <>
+      <motion.form
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        onSubmit={handleSubmit}
+        className="glass-card p-6 rounded-xl border border-border space-y-4 mb-8"
+      >
+        <div className="space-y-1.5">
+          <Label>{lang === "id" ? "Pilih Karakter" : "Select Character"}</Label>
+          <div className="grid gap-2">
+            {characters.map((char) => (
+              <button
+                key={char.id}
+                type="button"
+                onClick={() => setSelectedChar(char)}
+                className={`flex items-center justify-between p-3 rounded-lg border text-left transition-all ${
+                  selectedChar?.id === char.id
+                    ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                    : "border-border bg-muted/30 hover:bg-muted/50"
+                }`}
+              >
+                <div className="min-w-0">
+                  <span className="font-display text-sm font-bold text-foreground">{char.name}</span>
+                  <span className="text-xs text-muted-foreground ml-2">Lv.{char.level}</span>
+                  <span className="text-xs text-muted-foreground ml-1">· ID: {char.id}</span>
+                </div>
+                {selectedChar?.id === char.id && (
+                  <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="kode">{t("voucher_code")}</Label>
+          <Input
+            id="kode"
+            value={kode}
+            onChange={(e) => setKode(e.target.value.toUpperCase())}
+            placeholder={t("voucher_code_ph")}
+            maxLength={32}
+            required
+            className="font-mono tracking-wider uppercase"
+          />
+        </div>
+
+        {successMsg && (
+          <div className="flex items-start gap-2 text-sm text-emerald-400 bg-emerald-500/10 border border-emerald-500/40 rounded-md p-3">
+            <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+            <span>{successMsg}</span>
+          </div>
+        )}
+        {errorMsg && (
+          <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/40 rounded-md p-3">
+            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
+        <Button type="submit" disabled={loading} className="w-full h-11 font-display tracking-wider gap-2 glow-primary">
+          <Gift className="w-4 h-4" />
+          {loading ? t("voucher_processing") : t("voucher_submit")}
+        </Button>
+      </motion.form>
+
+      <div className="glass-card p-6 rounded-xl border border-border">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h2 className="font-display text-lg text-primary tracking-wider">{t("voucher_logs_title")}</h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setPage(1); setSort("desc"); }}
+              className={`px-3 py-1 rounded-md text-xs font-display tracking-wider transition-colors ${
+                sort === "desc" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70"
+              }`}
+            >
+              {t("voucher_newest")}
+            </button>
+            <button
+              onClick={() => { setPage(1); setSort("asc"); }}
+              className={`px-3 py-1 rounded-md text-xs font-display tracking-wider transition-colors ${
+                sort === "asc" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70"
+              }`}
+            >
+              {t("voucher_oldest")}
+            </button>
+            <button
+              onClick={loadLogs}
+              disabled={logsLoading}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              aria-label="Refresh"
+            >
+              <RefreshCw className={`w-4 h-4 ${logsLoading ? "animate-spin" : ""}`} />
+            </button>
+          </div>
+        </div>
+
+        {logsError ? (
+          <div className="text-center py-8 text-destructive text-sm">{t("voucher_load_failed")}</div>
+        ) : logs.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground text-sm">
+            {logsLoading ? "..." : t("voucher_no_logs")}
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {logs.map((log, i) => {
+              const mine = selectedChar && log.character_id === selectedChar.id;
+              return (
+                <li
+                  key={`${log.character_id}-${log.created_at}-${i}`}
+                  className={`p-3 rounded-lg border ${
+                    mine ? "bg-primary/10 border-primary/40" : "bg-muted/30 border-border"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2 flex-wrap">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-display text-sm text-foreground truncate">
+                        {log.character_name}{" "}
+                        <span className="text-muted-foreground font-normal">({log.character_id})</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {t("voucher_claimed_voucher")}{" "}
+                        <span className="font-mono text-foreground">{log.voucher}</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground shrink-0">
+                      {timeAgo(log.created_at)}
+                    </span>
+                  </div>
+                  {log.rewards?.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {log.rewards.map((r, j) => (
+                        <span key={j} className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${rewardClass(r)}`}>
+                          {formatReward(r)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-1.5 mt-4 flex-wrap">
+            <button onClick={() => setPage(1)} disabled={page === 1} className="h-8 px-2 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed">
+              « {t("pg_first")}
+            </button>
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="h-8 px-3 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed">
+              ‹ {t("pg_prev")}
+            </button>
+            <span className="h-8 px-3 inline-flex items-center rounded-md text-xs font-display bg-primary text-primary-foreground">
+              {page} / {totalPages}
+            </span>
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="h-8 px-3 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed">
+              {t("pg_next")} ›
+            </button>
+            <button onClick={() => setPage(totalPages)} disabled={page === totalPages} className="h-8 px-2 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed">
+              {t("pg_last")} »
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+
+  if (embedded) return <div>{content}</div>;
+
   return (
     <main className="min-h-screen pt-32 pb-16 px-4">
       <div className="container max-w-3xl mx-auto">
@@ -178,172 +356,7 @@ const Voucher = () => {
           </h1>
           <p className="text-sm text-muted-foreground mt-2">{t("voucher_subtitle")}</p>
         </motion.div>
-
-        <motion.form
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          onSubmit={handleSubmit}
-          className="glass-card p-6 rounded-xl border border-border space-y-4 mb-8"
-        >
-          {/* Character Picker */}
-          <div className="space-y-1.5">
-            <Label>{lang === "id" ? "Pilih Karakter" : "Select Character"}</Label>
-            <div className="grid gap-2">
-              {characters.map((char) => (
-                <button
-                  key={char.id}
-                  type="button"
-                  onClick={() => setSelectedChar(char)}
-                  className={`flex items-center justify-between p-3 rounded-lg border text-left transition-all ${
-                    selectedChar?.id === char.id
-                      ? "border-primary bg-primary/10 ring-1 ring-primary/30"
-                      : "border-border bg-muted/30 hover:bg-muted/50"
-                  }`}
-                >
-                  <div className="min-w-0">
-                    <span className="font-display text-sm font-bold text-foreground">{char.name}</span>
-                    <span className="text-xs text-muted-foreground ml-2">Lv.{char.level}</span>
-                    <span className="text-xs text-muted-foreground ml-1">· ID: {char.id}</span>
-                  </div>
-                  {selectedChar?.id === char.id && (
-                    <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="kode">{t("voucher_code")}</Label>
-            <Input
-              id="kode"
-              value={kode}
-              onChange={(e) => setKode(e.target.value.toUpperCase())}
-              placeholder={t("voucher_code_ph")}
-              maxLength={32}
-              required
-              className="font-mono tracking-wider uppercase"
-            />
-          </div>
-
-          {successMsg && (
-            <div className="flex items-start gap-2 text-sm text-emerald-400 bg-emerald-500/10 border border-emerald-500/40 rounded-md p-3">
-              <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
-              <span>{successMsg}</span>
-            </div>
-          )}
-          {errorMsg && (
-            <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/40 rounded-md p-3">
-              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
-
-          <Button type="submit" disabled={loading} className="w-full h-11 font-display tracking-wider gap-2 glow-primary">
-            <Gift className="w-4 h-4" />
-            {loading ? t("voucher_processing") : t("voucher_submit")}
-          </Button>
-        </motion.form>
-
-        <div className="glass-card p-6 rounded-xl border border-border">
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <h2 className="font-display text-lg text-primary tracking-wider">{t("voucher_logs_title")}</h2>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => { setPage(1); setSort("desc"); }}
-                className={`px-3 py-1 rounded-md text-xs font-display tracking-wider transition-colors ${
-                  sort === "desc" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70"
-                }`}
-              >
-                {t("voucher_newest")}
-              </button>
-              <button
-                onClick={() => { setPage(1); setSort("asc"); }}
-                className={`px-3 py-1 rounded-md text-xs font-display tracking-wider transition-colors ${
-                  sort === "asc" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70"
-                }`}
-              >
-                {t("voucher_oldest")}
-              </button>
-              <button
-                onClick={loadLogs}
-                disabled={logsLoading}
-                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                aria-label="Refresh"
-              >
-                <RefreshCw className={`w-4 h-4 ${logsLoading ? "animate-spin" : ""}`} />
-              </button>
-            </div>
-          </div>
-
-          {logsError ? (
-            <div className="text-center py-8 text-destructive text-sm">{t("voucher_load_failed")}</div>
-          ) : logs.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">
-              {logsLoading ? "..." : t("voucher_no_logs")}
-            </div>
-          ) : (
-            <ul className="space-y-2">
-              {logs.map((log, i) => {
-                const mine = selectedChar && log.character_id === selectedChar.id;
-                return (
-                  <li
-                    key={`${log.character_id}-${log.created_at}-${i}`}
-                    className={`p-3 rounded-lg border ${
-                      mine ? "bg-primary/10 border-primary/40" : "bg-muted/30 border-border"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2 flex-wrap">
-                      <div className="min-w-0 flex-1">
-                        <div className="font-display text-sm text-foreground truncate">
-                          {log.character_name}{" "}
-                          <span className="text-muted-foreground font-normal">({log.character_id})</span>
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          {t("voucher_claimed_voucher")}{" "}
-                          <span className="font-mono text-foreground">{log.voucher}</span>
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground shrink-0">
-                        {timeAgo(log.created_at)}
-                      </span>
-                    </div>
-                    {log.rewards?.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {log.rewards.map((r, j) => (
-                          <span key={j} className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${rewardClass(r)}`}>
-                            {formatReward(r)}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-1.5 mt-4 flex-wrap">
-              <button onClick={() => setPage(1)} disabled={page === 1} className="h-8 px-2 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed">
-                « {t("pg_first")}
-              </button>
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="h-8 px-3 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed">
-                ‹ {t("pg_prev")}
-              </button>
-              <span className="h-8 px-3 inline-flex items-center rounded-md text-xs font-display bg-primary text-primary-foreground">
-                {page} / {totalPages}
-              </span>
-              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="h-8 px-3 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed">
-                {t("pg_next")} ›
-              </button>
-              <button onClick={() => setPage(totalPages)} disabled={page === totalPages} className="h-8 px-2 rounded-md text-xs font-display bg-muted text-muted-foreground hover:bg-muted/70 disabled:opacity-40 disabled:cursor-not-allowed">
-                {t("pg_last")} »
-              </button>
-            </div>
-          )}
-        </div>
+        {content}
       </div>
     </main>
   );
