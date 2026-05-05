@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Users, UserCheck, Activity, CalendarDays, Swords, Crown, Coins, Trophy, Loader2, ChevronRight } from "lucide-react";
+import { Users, UserCheck, Activity, CalendarDays, Swords, Crown, Coins, Trophy, Loader2, ChevronRight, Shield, Server } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import Clans from "./Clans";
 
 const API_BASE = "https://play.kotagames.web.id";
 
@@ -47,8 +48,11 @@ const fetchJson = async (path: string) => {
   return r.json();
 };
 
+type StatTab = "clans" | "server";
+
 const Statistik = () => {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const [tab, setTab] = useState<StatTab>("clans");
   const [loading, setLoading] = useState(true);
   const [totals, setTotals] = useState({
     users: 0,
@@ -69,7 +73,9 @@ const Statistik = () => {
   const [modalLoading, setModalLoading] = useState(false);
 
   useEffect(() => {
+    if (tab !== "server") return;
     (async () => {
+      setLoading(true);
       try {
         const [
           tu, tut, to5, to3,
@@ -103,7 +109,7 @@ const Statistik = () => {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [tab]);
 
   const openOnlineUsers = useCallback(async () => {
     setModal("users");
@@ -147,13 +153,18 @@ const Statistik = () => {
     </Card>
   );
 
+  const tabs: { key: StatTab; label: string; icon: React.ReactNode }[] = [
+    { key: "clans", label: "Clans", icon: <Shield className="w-3.5 h-3.5" /> },
+    { key: "server", label: "Server", icon: <Server className="w-3.5 h-3.5" /> },
+  ];
+
   return (
     <div className="min-h-screen pt-28 pb-16 px-4">
       <div className="container max-w-6xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
+          className="text-center mb-6"
         >
           <h1 className="font-display text-3xl md:text-4xl font-bold text-primary tracking-wider">
             {t("stats_title")}
@@ -161,116 +172,136 @@ const Statistik = () => {
           <p className="text-muted-foreground text-sm mt-1">{t("stats_subtitle")}</p>
         </motion.div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-20 text-muted-foreground gap-2">
-            <Loader2 className="w-5 h-5 animate-spin" /> {t("stats_loading")}
-          </div>
+        {/* Tab Switcher */}
+        <div className="flex items-center justify-center gap-2 mb-6">
+          {tabs.map((tb) => (
+            <button
+              key={tb.key}
+              onClick={() => setTab(tb.key)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-md font-display text-xs tracking-wider transition-colors ${
+                tab === tb.key
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tb.icon}
+              {tb.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === "clans" ? (
+          <Clans embedded />
         ) : (
           <>
-            {/* Users */}
-            <section className="mb-8">
-              <h2 className="font-display text-sm tracking-widest text-muted-foreground mb-3">
-                {t("stats_users_section")}
-              </h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <StatCard icon={Users} label={t("stats_total_users")} value={totals.users} />
-                <StatCard icon={UserCheck} label={t("stats_active_users")} value={totals.usersToday} onClick={openOnlineUsers} />
-                <StatCard icon={Activity} label={t("stats_online_users")} value={totals.usersOnline} accent onClick={openOnlineUsers} />
-                <StatCard icon={CalendarDays} label={t("stats_active_3d")} value={totals.users3d} />
+            {loading ? (
+              <div className="flex items-center justify-center py-20 text-muted-foreground gap-2">
+                <Loader2 className="w-5 h-5 animate-spin" /> {t("stats_loading")}
               </div>
-            </section>
-
-            {/* Characters */}
-            <section className="mb-10">
-              <h2 className="font-display text-sm tracking-widest text-muted-foreground mb-3">
-                {t("stats_chars_section")}
-              </h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <StatCard icon={Swords} label={t("stats_total_chars")} value={totals.chars} />
-                <StatCard icon={UserCheck} label={t("stats_active_chars")} value={totals.charsToday} onClick={openOnlineChars} />
-                <StatCard icon={Activity} label={t("stats_online_chars")} value={totals.charsOnline} accent onClick={openOnlineChars} />
-                <StatCard icon={CalendarDays} label={t("stats_active_chars_3d")} value={totals.chars3d} />
-              </div>
-            </section>
-
-            {/* Top Level + Sultan */}
-            <div className="grid md:grid-cols-2 gap-6">
-              <Card className="glass-card border-border/50 p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Crown className="w-5 h-5 text-primary" />
-                  <h3 className="font-display text-base tracking-wider">{t("stats_top_level")}</h3>
-                </div>
-                {topLevel.length === 0 ? (
-                  <div className="text-muted-foreground text-sm py-6 text-center">{t("stats_no_data")}</div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-10">#</TableHead>
-                          <TableHead>{t("stats_col_name")}</TableHead>
-                          <TableHead className="text-right">{t("stats_col_level")}</TableHead>
-                          <TableHead className="text-right hidden sm:table-cell">{t("stats_col_xp")}</TableHead>
-                          <TableHead className="text-right">{t("stats_col_rank")}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {topLevel.map((p, i) => (
-                          <TableRow key={p.id}>
-                            <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                            <TableCell>
-                              <div className="font-medium">{p.name}</div>
-                              <div className="text-xs text-muted-foreground">@{p.username}</div>
-                            </TableCell>
-                            <TableCell className="text-right font-display text-primary">{p.level}</TableCell>
-                            <TableCell className="text-right hidden sm:table-cell text-muted-foreground">{fmt(p.xp)}</TableCell>
-                            <TableCell className="text-right">{p.rank}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+            ) : (
+              <>
+                <section className="mb-8">
+                  <h2 className="font-display text-sm tracking-widest text-muted-foreground mb-3">
+                    {t("stats_users_section")}
+                  </h2>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <StatCard icon={Users} label={t("stats_total_users")} value={totals.users} />
+                    <StatCard icon={UserCheck} label={t("stats_active_users")} value={totals.usersToday} onClick={openOnlineUsers} />
+                    <StatCard icon={Activity} label={t("stats_online_users")} value={totals.usersOnline} accent onClick={openOnlineUsers} />
+                    <StatCard icon={CalendarDays} label={t("stats_active_3d")} value={totals.users3d} />
                   </div>
-                )}
-              </Card>
+                </section>
 
-              <Card className="glass-card border-border/50 p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Coins className="w-5 h-5 text-primary" />
-                  <h3 className="font-display text-base tracking-wider">{t("stats_top_sultan")}</h3>
-                </div>
-                {topSultan.length === 0 ? (
-                  <div className="text-muted-foreground text-sm py-6 text-center">{t("stats_no_data")}</div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-10">#</TableHead>
-                          <TableHead>{t("stats_col_user")}</TableHead>
-                          <TableHead className="text-right">{t("stats_col_tokens")}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {topSultan.map((p, i) => (
-                          <TableRow key={p.id}>
-                            <TableCell className="text-muted-foreground">
-                              {i === 0 ? <Trophy className="w-4 h-4 text-yellow-400" /> : i + 1}
-                            </TableCell>
-                            <TableCell className="font-medium">@{p.username}</TableCell>
-                            <TableCell className="text-right font-display text-primary">{fmt(p.tokens)}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                <section className="mb-10">
+                  <h2 className="font-display text-sm tracking-widest text-muted-foreground mb-3">
+                    {t("stats_chars_section")}
+                  </h2>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <StatCard icon={Swords} label={t("stats_total_chars")} value={totals.chars} />
+                    <StatCard icon={UserCheck} label={t("stats_active_chars")} value={totals.charsToday} onClick={openOnlineChars} />
+                    <StatCard icon={Activity} label={t("stats_online_chars")} value={totals.charsOnline} accent onClick={openOnlineChars} />
+                    <StatCard icon={CalendarDays} label={t("stats_active_chars_3d")} value={totals.chars3d} />
                   </div>
-                )}
-              </Card>
-            </div>
+                </section>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  <Card className="glass-card border-border/50 p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Crown className="w-5 h-5 text-primary" />
+                      <h3 className="font-display text-base tracking-wider">{t("stats_top_level")}</h3>
+                    </div>
+                    {topLevel.length === 0 ? (
+                      <div className="text-muted-foreground text-sm py-6 text-center">{t("stats_no_data")}</div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-10">#</TableHead>
+                              <TableHead>{t("stats_col_name")}</TableHead>
+                              <TableHead className="text-right">{t("stats_col_level")}</TableHead>
+                              <TableHead className="text-right hidden sm:table-cell">{t("stats_col_xp")}</TableHead>
+                              <TableHead className="text-right">{t("stats_col_rank")}</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {topLevel.map((p, i) => (
+                              <TableRow key={p.id}>
+                                <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                                <TableCell>
+                                  <div className="font-medium">{p.name}</div>
+                                  <div className="text-xs text-muted-foreground">@{p.username}</div>
+                                </TableCell>
+                                <TableCell className="text-right font-display text-primary">{p.level}</TableCell>
+                                <TableCell className="text-right hidden sm:table-cell text-muted-foreground">{fmt(p.xp)}</TableCell>
+                                <TableCell className="text-right">{p.rank}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </Card>
+
+                  <Card className="glass-card border-border/50 p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Coins className="w-5 h-5 text-primary" />
+                      <h3 className="font-display text-base tracking-wider">{t("stats_top_sultan")}</h3>
+                    </div>
+                    {topSultan.length === 0 ? (
+                      <div className="text-muted-foreground text-sm py-6 text-center">{t("stats_no_data")}</div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-10">#</TableHead>
+                              <TableHead>{t("stats_col_user")}</TableHead>
+                              <TableHead className="text-right">{t("stats_col_tokens")}</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {topSultan.map((p, i) => (
+                              <TableRow key={p.id}>
+                                <TableCell className="text-muted-foreground">
+                                  {i === 0 ? <Trophy className="w-4 h-4 text-yellow-400" /> : i + 1}
+                                </TableCell>
+                                <TableCell className="font-medium">@{p.username}</TableCell>
+                                <TableCell className="text-right font-display text-primary">{fmt(p.tokens)}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </Card>
+                </div>
+              </>
+            )}
           </>
         )}
       </div>
 
-      {/* Online popup */}
       <Dialog open={modal !== null} onOpenChange={(o) => !o && setModal(null)}>
         <DialogContent className="glass-card border-border max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>

@@ -103,7 +103,7 @@ const Admin = () => {
     if (!sesi) return;
     setVoucherLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/voucher-admin/list/${sesi}`);
+      const res = await fetch(`${API_BASE}/voucher-admin/list`);
       const json = await res.json();
       if (json.status && Array.isArray(json.data)) {
         setVouchers(json.data);
