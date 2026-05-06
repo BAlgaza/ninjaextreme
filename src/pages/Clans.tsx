@@ -212,6 +212,122 @@ const Clans = ({ embedded }: ClansProps) => {
 
       {!loading && !error && (
         <>
+          {/* Top Reputation Section */}
+          {(topGlobal.length > 0 || topClan3.length > 0) && (
+            <Card className="glass-card border-border/50 p-4 mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Star className="w-5 h-5 text-yellow-400" />
+                <h3 className="font-display text-base tracking-wider">Top Reputation</h3>
+              </div>
+
+              <div className="flex items-center gap-2 mb-4">
+                <button
+                  onClick={() => setTopTab("global")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-display text-xs tracking-wider transition-colors ${
+                    topTab === "global"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Trophy className="w-3 h-3" />
+                  Global
+                </button>
+                <button
+                  onClick={() => setTopTab("clan3")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-display text-xs tracking-wider transition-colors ${
+                    topTab === "clan3"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Medal className="w-3 h-3" />
+                  Top 3 / Clan
+                </button>
+              </div>
+
+              {topTab === "global" ? (
+                topGlobal.length === 0 ? (
+                  <div className="text-muted-foreground text-sm text-center py-4">No data</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-10">#</TableHead>
+                          <TableHead>Name</TableHead>
+                          <TableHead className="hidden sm:table-cell">Clan</TableHead>
+                          <TableHead className="text-center">Lv</TableHead>
+                          <TableHead className="text-right">Reputation</TableHead>
+                          <TableHead className="text-right hidden sm:table-cell">Onigiri</TableHead>
+                          <TableHead className="text-right hidden md:table-cell">Last Active</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {topGlobal.map((p, i) => {
+                          const r = p.rank ?? i + 1;
+                          const rankColor = r === 1 ? "text-yellow-400" : r === 2 ? "text-gray-300" : r === 3 ? "text-amber-600" : "text-muted-foreground";
+                          return (
+                            <TableRow key={p.character_id}>
+                              <TableCell className={`font-display font-bold ${rankColor}`}>
+                                {r <= 3 ? <Trophy className={`w-4 h-4 ${rankColor}`} /> : r}
+                              </TableCell>
+                              <TableCell className="font-medium">{p.name}</TableCell>
+                              <TableCell className="hidden sm:table-cell text-muted-foreground text-xs">{p.clan_name || "—"}</TableCell>
+                              <TableCell className="text-center font-mono text-primary">{p.level}</TableCell>
+                              <TableCell className="text-right font-display text-primary font-bold">{fmtNum(p.reputation)}</TableCell>
+                              <TableCell className="text-right hidden sm:table-cell text-muted-foreground">{fmtNum(p.onigiri)}</TableCell>
+                              <TableCell className="text-right hidden md:table-cell text-xs text-muted-foreground">{p.active_text}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )
+              ) : (
+                topClan3.length === 0 ? (
+                  <div className="text-muted-foreground text-sm text-center py-4">No data</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-10">#</TableHead>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Clan</TableHead>
+                          <TableHead className="text-center">Clan Rank</TableHead>
+                          <TableHead className="text-center">Lv</TableHead>
+                          <TableHead className="text-right">Reputation</TableHead>
+                          <TableHead className="text-right hidden sm:table-cell">Onigiri</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {topClan3.map((p) => {
+                          const gr = p.global_rank ?? 0;
+                          const rankColor = gr === 1 ? "text-yellow-400" : gr === 2 ? "text-gray-300" : gr === 3 ? "text-amber-600" : "text-muted-foreground";
+                          const crColor = p.clan_rank === 1 ? "text-yellow-400" : p.clan_rank === 2 ? "text-gray-300" : "text-amber-600";
+                          return (
+                            <TableRow key={p.character_id}>
+                              <TableCell className={`font-display font-bold ${rankColor}`}>
+                                {gr <= 3 ? <Trophy className={`w-4 h-4 ${rankColor}`} /> : gr}
+                              </TableCell>
+                              <TableCell className="font-medium">{p.name}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{p.clan?.name || "—"}</TableCell>
+                              <TableCell className={`text-center font-display font-bold ${crColor}`}>#{p.clan_rank}</TableCell>
+                              <TableCell className="text-center font-mono text-primary">{p.level}</TableCell>
+                              <TableCell className="text-right font-display text-primary font-bold">{fmtNum(p.reputation)}</TableCell>
+                              <TableCell className="text-right hidden sm:table-cell text-muted-foreground">{fmtNum(p.onigiri)}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )
+              )}
+            </Card>
+          )}
+
           <div className="text-center mb-6 text-sm text-muted-foreground">
             {t("clans_total")}: <span className="text-primary font-bold">{clans.length}</span>
           </div>
