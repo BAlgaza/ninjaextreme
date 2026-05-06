@@ -72,44 +72,48 @@ const Statistik = () => {
   const [onlineChars, setOnlineChars] = useState<OnlineChar[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
 
+  const fetchServerData = useCallback(async (isInitial = false) => {
+    if (isInitial) setLoading(true);
+    try {
+      const [
+        tu, tut, to5, to3,
+        tc, tct, toc5, toc3,
+        lvl, sultan,
+      ] = await Promise.all([
+        fetchJson("/api/stats/totalusers"),
+        fetchJson("/api/stats/totalusers/online"),
+        fetchJson("/api/stats/totalusers/online-5m"),
+        fetchJson("/api/stats/totalusers/online/3hari"),
+        fetchJson("/api/stats/totalcharacter"),
+        fetchJson("/api/stats/totalcharacter/online"),
+        fetchJson("/api/stats/characters/online-5m/total"),
+        fetchJson("/api/stats/totalcharacter/online/3hari"),
+        fetchJson("/api/stats/toprank/level"),
+        fetchJson("/api/stats/toprank/sultan/token"),
+      ]);
+      setTotals({
+        users: tu?.total_users || 0,
+        usersToday: tut?.online_today || 0,
+        usersOnline: to5?.online_5m || 0,
+        users3d: to3?.online_3_days || 0,
+        chars: tc?.total_character || 0,
+        charsToday: tct?.online_character_today || 0,
+        charsOnline: toc5?.total_character_online || 0,
+        chars3d: toc3?.online_character_3_days || 0,
+      });
+      if (lvl?.status) setTopLevel(lvl.data || []);
+      if (sultan?.status) setTopSultan(sultan.data || []);
+    } finally {
+      if (isInitial) setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (tab !== "server") return;
-    (async () => {
-      setLoading(true);
-      try {
-        const [
-          tu, tut, to5, to3,
-          tc, tct, toc5, toc3,
-          lvl, sultan,
-        ] = await Promise.all([
-          fetchJson("/api/stats/totalusers"),
-          fetchJson("/api/stats/totalusers/online"),
-          fetchJson("/api/stats/totalusers/online-5m"),
-          fetchJson("/api/stats/totalusers/online/3hari"),
-          fetchJson("/api/stats/totalcharacter"),
-          fetchJson("/api/stats/totalcharacter/online"),
-          fetchJson("/api/stats/characters/online-5m/total"),
-          fetchJson("/api/stats/totalcharacter/online/3hari"),
-          fetchJson("/api/stats/toprank/level"),
-          fetchJson("/api/stats/toprank/sultan/token"),
-        ]);
-        setTotals({
-          users: tu?.total_users || 0,
-          usersToday: tut?.online_today || 0,
-          usersOnline: to5?.online_5m || 0,
-          users3d: to3?.online_3_days || 0,
-          chars: tc?.total_character || 0,
-          charsToday: tct?.online_character_today || 0,
-          charsOnline: toc5?.total_character_online || 0,
-          chars3d: toc3?.online_character_3_days || 0,
-        });
-        if (lvl?.status) setTopLevel(lvl.data || []);
-        if (sultan?.status) setTopSultan(sultan.data || []);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [tab]);
+    fetchServerData(true);
+    const id = setInterval(() => fetchServerData(false), 3000);
+    return () => clearInterval(id);
+  }, [tab, fetchServerData]);
 
   const openOnlineUsers = useCallback(async () => {
     setModal("users");
