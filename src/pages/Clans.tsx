@@ -121,38 +121,38 @@ const Clans = ({ embedded }: ClansProps) => {
     }
   }, [t, embedded]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(false);
-      try {
-        const [clansRes, topGlobalRes, topClan3Res] = await Promise.all([
-          fetch(`${API_BASE}/api/klan/all`).then(r => r.json()),
-          fetch(`${API_BASE}/api/klan/topglobal`).then(r => r.json()).catch(() => null),
-          fetch(`${API_BASE}/api/klan/topglobal3`).then(r => r.json()).catch(() => null),
-        ]);
-        if (cancelled) return;
-        if (clansRes?.status && Array.isArray(clansRes.clans)) {
-          const sorted = [...clansRes.clans].sort((a: Clan, b: Clan) => b.prestige - a.prestige);
-          setClans(sorted);
-        } else {
-          setError(true);
-        }
-        if (topGlobalRes?.status && Array.isArray(topGlobalRes.players)) {
-          setTopGlobal(topGlobalRes.players);
-        }
-        if (topClan3Res?.status && Array.isArray(topClan3Res.players)) {
-          setTopClan3(topClan3Res.players);
-        }
-      } catch {
-        if (!cancelled) setError(true);
-      } finally {
-        if (!cancelled) setLoading(false);
+  const fetchData = useCallback(async (isInitial = false) => {
+    if (isInitial) { setLoading(true); setError(false); }
+    try {
+      const [clansRes, topGlobalRes, topClan3Res] = await Promise.all([
+        fetch(`${API_BASE}/api/klan/all`).then(r => r.json()),
+        fetch(`${API_BASE}/api/klan/topglobal`).then(r => r.json()).catch(() => null),
+        fetch(`${API_BASE}/api/klan/topglobal3`).then(r => r.json()).catch(() => null),
+      ]);
+      if (clansRes?.status && Array.isArray(clansRes.clans)) {
+        const sorted = [...clansRes.clans].sort((a: Clan, b: Clan) => b.prestige - a.prestige);
+        setClans(sorted);
+      } else if (isInitial) {
+        setError(true);
       }
-    })();
-    return () => { cancelled = true; };
+      if (topGlobalRes?.status && Array.isArray(topGlobalRes.players)) {
+        setTopGlobal(topGlobalRes.players);
+      }
+      if (topClan3Res?.status && Array.isArray(topClan3Res.players)) {
+        setTopClan3(topClan3Res.players);
+      }
+    } catch {
+      if (isInitial) setError(true);
+    } finally {
+      if (isInitial) setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData(true);
+    const id = setInterval(() => fetchData(false), 3000);
+    return () => clearInterval(id);
+  }, [fetchData]);
 
   const openMembers = useCallback(async (clan: Clan) => {
     setSelectedClan(clan);
