@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Shield, Crown, Users, Coins, Swords, Trophy, Loader2, Building2, Droplet, ShieldCheck } from "lucide-react";
+import { Shield, Crown, Users, Coins, Swords, Trophy, Loader2, Building2, Droplet, ShieldCheck, Star, Medal } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
