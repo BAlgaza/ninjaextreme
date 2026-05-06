@@ -62,6 +62,21 @@ interface Battle {
   created_at: string;
 }
 
+interface TopGlobalPlayer {
+  rank?: number;
+  global_rank?: number;
+  clan_rank?: number;
+  character_id: number;
+  name: string;
+  clan_name?: string;
+  clan?: { id: number; name: string; prestige: number };
+  reputation: number;
+  onigiri: number;
+  level: number;
+  active_at: string;
+  active_text: string;
+}
+
 const fmtNum = (n: number) => new Intl.NumberFormat("en-US").format(n || 0);
 const fmtDateTime = (s: string) => {
   try {
