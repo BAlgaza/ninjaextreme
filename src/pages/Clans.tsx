@@ -104,6 +104,10 @@ const Clans = ({ embedded }: ClansProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
+  const [topGlobal, setTopGlobal] = useState<TopGlobalPlayer[]>([]);
+  const [topClan3, setTopClan3] = useState<TopGlobalPlayer[]>([]);
+  const [topTab, setTopTab] = useState<"global" | "clan3">("global");
+
   const [selectedClan, setSelectedClan] = useState<Clan | null>(null);
   const [modalTab, setModalTab] = useState<"members" | "battles" | null>(null);
 
@@ -123,14 +127,23 @@ const Clans = ({ embedded }: ClansProps) => {
       setLoading(true);
       setError(false);
       try {
-        const r = await fetch(`${API_BASE}/api/klan/all`);
-        const data = await r.json();
+        const [clansRes, topGlobalRes, topClan3Res] = await Promise.all([
+          fetch(`${API_BASE}/api/klan/all`).then(r => r.json()),
+          fetch(`${API_BASE}/api/klan/topglobal`).then(r => r.json()).catch(() => null),
+          fetch(`${API_BASE}/api/klan/topglobal3`).then(r => r.json()).catch(() => null),
+        ]);
         if (cancelled) return;
-        if (data?.status && Array.isArray(data.clans)) {
-          const sorted = [...data.clans].sort((a: Clan, b: Clan) => b.prestige - a.prestige);
+        if (clansRes?.status && Array.isArray(clansRes.clans)) {
+          const sorted = [...clansRes.clans].sort((a: Clan, b: Clan) => b.prestige - a.prestige);
           setClans(sorted);
         } else {
           setError(true);
+        }
+        if (topGlobalRes?.status && Array.isArray(topGlobalRes.players)) {
+          setTopGlobal(topGlobalRes.players);
+        }
+        if (topClan3Res?.status && Array.isArray(topClan3Res.players)) {
+          setTopClan3(topClan3Res.players);
         }
       } catch {
         if (!cancelled) setError(true);
