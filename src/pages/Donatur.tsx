@@ -661,30 +661,101 @@ const Donatur = () => {
         </DialogContent>
       </Dialog>
 
-      {/* QRIS Popup */}
+      {/* QRIS Transaction Popup */}
       <Dialog open={qrisOpen} onOpenChange={setQrisOpen}>
-        <DialogContent className="max-w-md p-0 overflow-hidden bg-card border-primary/30">
+        <DialogContent className="max-w-md p-0 overflow-hidden bg-card border-primary/30 max-h-[90vh] overflow-y-auto">
           <DialogHeader className="p-5 pb-3">
-            <DialogTitle className="font-display text-center text-xl text-primary">{t("donatur_qris_title")}</DialogTitle>
-            <DialogDescription className="text-center">{t("donatur_qris_desc")}</DialogDescription>
+            <DialogTitle className="font-display text-center text-xl text-primary">
+              {qrisData?.package?.name || "QRIS Payment"}
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              Scan with any QRIS-supported app (ID/MY)
+            </DialogDescription>
           </DialogHeader>
-          <div className="px-4 pb-5">
-            <div className="rounded-xl overflow-hidden bg-white">
-              <img
-                src="https://algaza.site/panel/qris.jpg"
-                alt="QRIS"
-                width={862}
-                height={1104}
-                className="w-full h-auto block"
-              />
-            </div>
-            <p className="text-center text-xs text-muted-foreground mt-3">
-              {t("donatur_reward_min")}: <span className="font-bold text-primary">Rp 10.000</span> →{" "}
-              <span className="text-accent font-bold">{t("donatur_reward_bonus")}</span>
-            </p>
+          <div className="px-4 pb-5 space-y-3">
+            {qrisLoading && (
+              <div className="text-center py-10">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                <p className="text-sm text-muted-foreground mt-2">Generating QRIS...</p>
+              </div>
+            )}
+
+            {!qrisLoading && qrisData?.payment && (
+              <>
+                <div className="rounded-xl overflow-hidden bg-white p-3">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=0&data=${encodeURIComponent(qrisData.payment.qris)}`}
+                    alt="QRIS"
+                    className="w-full h-auto block"
+                  />
+                </div>
+
+                <div className="rounded-lg bg-primary/10 border border-primary/30 p-3 text-center">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Payment</p>
+                  <p className="font-display text-2xl font-black text-primary">{formatRupiah(currentTotal)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Nominal: {formatRupiah(qrisData.payment.nominal)} + Unique Code: {qrisData.payment.unique_code}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-lg bg-card/50 border border-border/40 p-2">
+                    <p className="text-[10px] text-muted-foreground uppercase">OTP</p>
+                    <p className="font-display font-bold text-foreground">{qrisData.payment.otp}</p>
+                  </div>
+                  <div className="rounded-lg bg-card/50 border border-border/40 p-2">
+                    <p className="text-[10px] text-muted-foreground uppercase">Status</p>
+                    <p className={`font-display font-bold inline-flex items-center gap-1 ${
+                      currentStatus === "paid" ? "text-accent" :
+                      currentStatus === "expired" ? "text-destructive" : "text-primary"
+                    }`}>
+                      {currentStatus === "paid" ? <CheckCircle2 className="w-3 h-3" /> :
+                       currentStatus === "expired" ? <XCircle className="w-3 h-3" /> :
+                       <Clock className="w-3 h-3" />}
+                      {currentStatus.toUpperCase()}
+                    </p>
+                  </div>
+                </div>
+
+                {qrisData.package?.rewards && qrisData.package.rewards.length > 0 && (
+                  <div className="rounded-lg bg-accent/10 border border-accent/30 p-3">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Rewards</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {qrisData.package.rewards.map((r) => (
+                        <span
+                          key={r}
+                          className="inline-flex items-center gap-1 text-[10px] font-display font-bold text-accent bg-accent/15 border border-accent/30 px-2 py-0.5 rounded-full"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          {formatReward(r)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Button onClick={() => checkStatus(false)} variant="outline" className="gap-2">
+                    <RefreshCw className="w-4 h-4" />
+                    Check Status
+                  </Button>
+                  <a href={waLink} target="_blank" rel="noopener noreferrer">
+                    <Button className="w-full gap-2 bg-[#25D366] hover:bg-[#1ebe57] text-white">
+                      <MessageCircle className="w-4 h-4" />
+                      WhatsApp
+                    </Button>
+                  </a>
+                </div>
+
+                <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
+                  Payment is verified manually by admin via WhatsApp before rewards are sent.
+                </p>
+              </>
+            )}
           </div>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 };
