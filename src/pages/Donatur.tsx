@@ -1,9 +1,70 @@
 import { motion } from "framer-motion";
-import { Heart, MessageCircle, Users, Gift, QrCode, TrendingUp, Sparkles, History, Wallet, Trophy } from "lucide-react";
+import { Heart, MessageCircle, Users, Gift, QrCode, TrendingUp, Sparkles, History, Wallet, Trophy, Loader2, RefreshCw, CheckCircle2, Clock, XCircle, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useLanguage } from "@/i18n/LanguageContext";
-import { forwardRef, useEffect, useMemo, useState } from "react";
+import { useSession } from "@/hooks/useSession";
+import { toast } from "@/hooks/use-toast";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+const API_BASE = "https://play.kotagames.web.id/api";
+const WA_NUMBER = "6289506227608";
+const TX_KEY = "ne_donasi_active";
+
+interface DonasiPackage {
+  id: number;
+  name: string;
+  price: number;
+  type: "firstime" | "normal" | string;
+  rewards: string[];
+}
+interface DonasiPaketResponse {
+  status: boolean;
+  message?: string;
+  user?: { id: number; username: string; first_time: boolean };
+  total?: number;
+  data?: DonasiPackage[];
+}
+interface QrisResponse {
+  status: boolean;
+  reused?: boolean;
+  message?: string;
+  user?: { id: number; username: string; name: string };
+  package?: { id: number; name: string; price: number; rewards: string[] };
+  payment?: {
+    nominal: number;
+    unique_code: number;
+    total_bayar: number;
+    qris: string;
+    otp: string;
+    status: string;
+  };
+}
+interface CheckResponse {
+  status: boolean;
+  message?: string;
+  user?: { id: number; username: string; name: string };
+  data?: {
+    id: number;
+    paket_id: number;
+    paket: { name: string; rewards: string[] };
+    nominal: number;
+    unique_code: number;
+    total_bayar: number;
+    qris: string;
+    status_pembayaran: "pending" | "paid" | "expired" | string;
+    otp: string;
+    created_at: string;
+    updated_at: string;
+  };
+}
+
+const formatReward = (r: string) => {
+  const m = r.match(/^tokens_(\d+)$/);
+  if (m) return `${parseInt(m[1], 10).toLocaleString("id-ID")} Tokens`;
+  return r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+};
 
 const DiscordIcon = forwardRef<SVGSVGElement, React.SVGProps<SVGSVGElement>>((props, ref) => (
   <svg ref={ref} viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" {...props}>
