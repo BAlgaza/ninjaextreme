@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Heart, MessageCircle, Users, Gift, TrendingUp, Sparkles, History, Wallet, Trophy, Loader2, RefreshCw, CheckCircle2, Clock, XCircle, Search } from "lucide-react";
+import { Heart, MessageCircle, Users, Gift, Sparkles, Loader2, RefreshCw, CheckCircle2, Clock, XCircle, Search, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -11,12 +11,14 @@ import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "r
 const API_BASE = "https://play.kotagames.web.id/api";
 const WA_NUMBER = "6289506227608";
 const TX_KEY = "ne_donasi_active";
+const SKILLS_URL = "https://kotagames.web.id/game_data/skills.json";
+const LIBRARY_URL = "https://kotagames.web.id/game_data/library.json";
 
 interface DonasiPackage {
   id: number;
   name: string;
   price: number;
-  type: "firstime" | "normal" | string;
+  type: string;
   rewards: string[];
 }
 interface DonasiPaketResponse {
@@ -60,11 +62,14 @@ interface CheckResponse {
   };
 }
 
-const formatReward = (r: string) => {
-  const m = r.match(/^tokens_(\d+)$/);
-  if (m) return `${parseInt(m[1], 10).toLocaleString("id-ID")} Tokens`;
-  return r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-};
+interface SkillEntry { id: string; name: string; description?: string; cooldown?: number }
+interface LibraryEntry { id: string; name: string; description?: string; type?: string }
+
+// Cached lookup maps
+let skillsCache: Record<string, SkillEntry> | null = null;
+let libraryCache: Record<string, LibraryEntry> | null = null;
+
+const formatRupiah = (n: number) => "Rp " + n.toLocaleString("id-ID");
 
 const DiscordIcon = forwardRef<SVGSVGElement, React.SVGProps<SVGSVGElement>>((props, ref) => (
   <svg ref={ref} viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" {...props}>
@@ -73,57 +78,38 @@ const DiscordIcon = forwardRef<SVGSVGElement, React.SVGProps<SVGSVGElement>>((pr
 ));
 DiscordIcon.displayName = "DiscordIcon";
 
-interface DonorEntry {
-  id: number;
-  user_id: number;
-  username: string;
-  nominal: number;
-  kurs: string;
-  method: string;
-  created_at: string;
+interface ResolvedReward {
+  raw: string;
+  label: string;
+  description?: string;
+  cooldown?: number;
+  kind: "tokens" | "skill" | "item" | "other";
 }
 
-interface DonorApiResponse {
-  code: number;
-  total: string;
-  total_format: string;
-  jumlah_data: number;
-  data: DonorEntry[];
-}
-
-interface GroupedDonor {
-  user_id: number;
-  username: string;
-  total: number;
-  count: number;
-  lastDate: string;
-  entries: DonorEntry[];
-}
-
-const formatRupiah = (n: number) => "Rp " + n.toLocaleString("id-ID");
-
-const formatDate = (iso: string, lang: string) => {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString(lang === "id" ? "id-ID" : "en-US", {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
+const resolveReward = (r: string): ResolvedReward => {
+  const tok = r.match(/^tokens_(\d+)$/);
+  if (tok) return { raw: r, label: `${parseInt(tok[1], 10).toLocaleString("id-ID")} Tokens`, kind: "tokens" };
+  if (/^skill_/.test(r)) {
+    const s = skillsCache?.[r];
+    return {
+      raw: r,
+      label: s?.name || r,
+      description: s?.description,
+      cooldown: s?.cooldown,
+      kind: "skill",
+    };
   }
+  if (/^(wpn_|set_|hair_|accessory_|pet_|back_|item_)/.test(r)) {
+    const it = libraryCache?.[r];
+    return { raw: r, label: it?.name || r.replace(/_/g, " "), description: it?.description, kind: "item" };
+  }
+  return { raw: r, label: r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()), kind: "other" };
 };
 
 const Donatur = () => {
   const { t, lang } = useLanguage();
   const { data: session } = useSession();
-  const [donorData, setDonorData] = useState<DonorApiResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [historyDonor, setHistoryDonor] = useState<GroupedDonor | null>(null);
 
-  // Donation flow state
   const [pkgUsername, setPkgUsername] = useState<string>("");
   const [pkgInput, setPkgInput] = useState<string>("");
   const [pkgData, setPkgData] = useState<DonasiPaketResponse | null>(null);
@@ -133,9 +119,37 @@ const Donatur = () => {
   const [qrisLoading, setQrisLoading] = useState(false);
   const [qrisData, setQrisData] = useState<QrisResponse | null>(null);
   const [checkData, setCheckData] = useState<CheckResponse | null>(null);
+  const [, setLibReady] = useState(0);
   const pollRef = useRef<number | null>(null);
 
-  // Auto-fill username from session
+  // Load skills + library data once
+  useEffect(() => {
+    const tasks: Promise<unknown>[] = [];
+    if (!skillsCache) {
+      tasks.push(
+        fetch(SKILLS_URL)
+          .then((r) => r.json())
+          .then((arr: SkillEntry[]) => {
+            skillsCache = {};
+            for (const s of arr || []) if (s?.id) skillsCache[s.id] = s;
+          })
+          .catch(() => { skillsCache = {}; })
+      );
+    }
+    if (!libraryCache) {
+      tasks.push(
+        fetch(LIBRARY_URL)
+          .then((r) => r.json())
+          .then((arr: LibraryEntry[]) => {
+            libraryCache = {};
+            for (const i of arr || []) if (i?.id) libraryCache[i.id] = i;
+          })
+          .catch(() => { libraryCache = {}; })
+      );
+    }
+    if (tasks.length) Promise.all(tasks).then(() => setLibReady((v) => v + 1));
+  }, []);
+
   useEffect(() => {
     if (session?.user?.username && !pkgUsername) {
       setPkgUsername(session.user.username);
@@ -151,32 +165,31 @@ const Donatur = () => {
       const r = await fetch(`${API_BASE}/donasi/paket/${encodeURIComponent(username.trim())}`);
       const j: DonasiPaketResponse = await r.json();
       if (!j.status) {
-        setPkgError(j.message || "User not found");
+        setPkgError(j.message || (lang === "id" ? "User tidak ditemukan" : "User not found"));
         setPkgData(null);
       } else {
         setPkgData(j);
         setPkgUsername(j.user?.username || username.trim());
       }
     } catch {
-      setPkgError("Network error");
+      setPkgError(lang === "id" ? "Gagal terhubung" : "Network error");
       setPkgData(null);
     } finally {
       setPkgLoading(false);
     }
-  }, []);
+  }, [lang]);
 
   useEffect(() => {
     if (pkgUsername) loadPackages(pkgUsername);
   }, [pkgUsername, loadPackages]);
 
-  // Restore active transaction from localStorage
+  // Restore active transaction
   useEffect(() => {
     const raw = localStorage.getItem(TX_KEY);
     if (!raw) return;
     try {
       const tx = JSON.parse(raw) as { username: string; otp: string };
       if (tx.username && tx.otp) {
-        // background check; if found and pending/paid -> show dialog
         fetch(`${API_BASE}/donasi/check/${encodeURIComponent(tx.username)}/${encodeURIComponent(tx.otp)}`)
           .then((r) => r.json())
           .then((j: CheckResponse) => {
@@ -217,20 +230,20 @@ const Donatur = () => {
       const r = await fetch(`${API_BASE}/donasi/qris/${pkg.id}/${encodeURIComponent(pkgUsername)}`);
       const j: QrisResponse = await r.json();
       if (!j.status || !j.payment) {
-        toast({ title: "Failed", description: j.message || "Cannot generate QRIS", variant: "destructive" });
+        toast({ title: lang === "id" ? "Gagal" : "Failed", description: j.message || (lang === "id" ? "Tidak dapat membuat QRIS" : "Cannot generate QRIS"), variant: "destructive" });
         setQrisOpen(false);
       } else {
         setQrisData(j);
         localStorage.setItem(TX_KEY, JSON.stringify({ username: pkgUsername, otp: j.payment.otp }));
-        if (j.reused) toast({ title: "Reused", description: j.message || "Using previous request" });
+        if (j.reused) toast({ title: lang === "id" ? "Transaksi Aktif" : "Active Transaction", description: j.message || (lang === "id" ? "Menggunakan transaksi sebelumnya" : "Reusing previous request") });
       }
     } catch {
-      toast({ title: "Network error", variant: "destructive" });
+      toast({ title: lang === "id" ? "Gagal terhubung" : "Network error", variant: "destructive" });
       setQrisOpen(false);
     } finally {
       setQrisLoading(false);
     }
-  }, [pkgUsername]);
+  }, [pkgUsername, lang]);
 
   const checkStatus = useCallback(async (silent = false) => {
     if (!qrisData?.payment?.otp || !pkgUsername) return;
@@ -239,19 +252,16 @@ const Donatur = () => {
       const j: CheckResponse = await r.json();
       if (j.status) {
         setCheckData(j);
-        if (!silent) toast({ title: "Status", description: `Payment: ${j.data?.status_pembayaran}` });
-        if (j.data?.status_pembayaran === "paid") {
-          localStorage.removeItem(TX_KEY);
-        }
+        if (!silent) toast({ title: "Status", description: `${lang === "id" ? "Pembayaran" : "Payment"}: ${j.data?.status_pembayaran}` });
+        if (j.data?.status_pembayaran === "paid") localStorage.removeItem(TX_KEY);
       } else if (!silent) {
-        toast({ title: "Not found", description: j.message || "Transaction not found", variant: "destructive" });
+        toast({ title: lang === "id" ? "Tidak ditemukan" : "Not found", description: j.message, variant: "destructive" });
       }
     } catch {
-      if (!silent) toast({ title: "Network error", variant: "destructive" });
+      if (!silent) toast({ title: lang === "id" ? "Gagal terhubung" : "Network error", variant: "destructive" });
     }
-  }, [qrisData, pkgUsername]);
+  }, [qrisData, pkgUsername, lang]);
 
-  // Poll status while dialog open & pending
   useEffect(() => {
     if (!qrisOpen || !qrisData?.payment?.otp) return;
     const status = checkData?.data?.status_pembayaran ?? qrisData.payment.status;
@@ -265,67 +275,78 @@ const Donatur = () => {
   const currentStatus = checkData?.data?.status_pembayaran ?? qrisData?.payment?.status ?? "pending";
   const currentTotal = checkData?.data?.total_bayar ?? qrisData?.payment?.total_bayar ?? 0;
 
+  // Group packages by type
+  const groupedPackages = useMemo(() => {
+    const groups = new Map<string, DonasiPackage[]>();
+    for (const p of pkgData?.data || []) {
+      const key = p.type || "other";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(p);
+    }
+    // Order: firstime first, then normal, then others
+    const order = ["firstime", "normal"];
+    return Array.from(groups.entries()).sort((a, b) => {
+      const ai = order.indexOf(a[0]); const bi = order.indexOf(b[0]);
+      if (ai === -1 && bi === -1) return a[0].localeCompare(b[0]);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+  }, [pkgData]);
+
+  const categoryLabel = (type: string) => {
+    if (type === "firstime") return lang === "id" ? "Spesial First Time" : "First Time Special";
+    if (type === "normal") return lang === "id" ? "Paket Reguler" : "Regular Packages";
+    return type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  };
+
   const waLink = useMemo(() => {
     if (!qrisData?.payment) return `https://wa.me/${WA_NUMBER}`;
-    const rewards = (qrisData.package?.rewards || []).map(formatReward).map((x) => `- ${x}`).join("\n");
-    const msg = `Halo kak, saya ${pkgUsername} ingin mengkonfirmasi pembayaran donasi sebesar Rp ${qrisData.payment.total_bayar.toLocaleString("id-ID")}.\nPaket: ${qrisData.package?.name}\nReward:\n${rewards}\nOTP: ${qrisData.payment.otp}\nMohon dicek ya kak, terima kasih 🙏`;
+    const resolved = (qrisData.package?.rewards || []).map(resolveReward);
+    const rewards = resolved
+      .map((r) => {
+        const parts = [`• ${r.label}`];
+        if (r.kind === "skill" && r.cooldown != null) parts.push(`(CD ${r.cooldown})`);
+        return parts.join(" ");
+      })
+      .join("\n");
+    const total = qrisData.payment.total_bayar.toLocaleString("id-ID");
+    const otp = qrisData.payment.otp;
+    const pkg = qrisData.package?.name || "-";
+    const msg = lang === "id"
+      ? `Halo Admin Kota Games,
+
+Saya ingin mengkonfirmasi pembayaran donasi.
+
+• Username : ${pkgUsername}
+• Paket    : ${pkg}
+• Total    : Rp ${total}
+• Kode OTP : ${otp}
+
+Reward:
+${rewards}
+
+Mohon dicek pembayarannya. Terima kasih 🙏`
+      : `Hello Kota Games Admin,
+
+I would like to confirm a donation payment.
+
+• Username : ${pkgUsername}
+• Package  : ${pkg}
+• Total    : Rp ${total}
+• OTP Code : ${otp}
+
+Rewards:
+${rewards}
+
+Please verify the payment. Thank you 🙏`;
     return `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`;
-  }, [qrisData, pkgUsername]);
+  }, [qrisData, pkgUsername, lang]);
 
-
-  useEffect(() => {
-    const apiUrl = "https://play.kotagames.web.id/api/donatur/log";
-    const tryFetch = async () => {
-      // Try direct first, then fall back to CORS proxy
-      try {
-        const r = await fetch(apiUrl);
-        if (!r.ok) throw new Error("bad status");
-        return (await r.json()) as DonorApiResponse;
-      } catch {
-        const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(apiUrl)}`);
-        return (await r.json()) as DonorApiResponse;
-      }
-    };
-    tryFetch()
-      .then((d) => setDonorData(d))
-      .catch(() => setDonorData(null))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const grouped = useMemo<GroupedDonor[]>(() => {
-    if (!donorData?.data) return [];
-    const map = new Map<number, GroupedDonor>();
-    for (const d of donorData.data) {
-      const g = map.get(d.user_id);
-      if (g) {
-        g.total += d.nominal;
-        g.count += 1;
-        g.entries.push(d);
-        if (new Date(d.created_at) > new Date(g.lastDate)) g.lastDate = d.created_at;
-      } else {
-        map.set(d.user_id, {
-          user_id: d.user_id,
-          username: d.username,
-          total: d.nominal,
-          count: 1,
-          lastDate: d.created_at,
-          entries: [d],
-        });
-      }
-    }
-    return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [donorData]);
-
-  const summary = useMemo(() => {
-    if (!donorData?.data?.length) return null;
-    const qris = donorData.data.filter((d) => d.method === "qris").reduce((s, d) => s + d.nominal, 0);
-    const paypal = donorData.data.filter((d) => d.method === "paypal").reduce((s, d) => s + d.nominal, 0);
-    const total = parseInt(donorData.total || "0", 10);
-    const avg = Math.round(total / donorData.data.length);
-    const top = grouped[0];
-    return { qris, paypal, avg, top };
-  }, [donorData, grouped]);
-
+  const dialogRewards = useMemo(
+    () => (qrisData?.package?.rewards || []).map(resolveReward),
+    [qrisData]
+  );
 
   return (
     <div className="min-h-screen bg-background pt-[calc(1.75rem+3.5rem+1rem)] pb-8 px-4">
@@ -336,7 +357,6 @@ const Donatur = () => {
           <p className="text-muted-foreground mt-1">{t("donatur_subtitle")}</p>
         </motion.div>
 
-        {/* Help develop server */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -349,7 +369,7 @@ const Donatur = () => {
           <p className="text-muted-foreground text-sm leading-relaxed mt-3">{t("donatur_msg")}</p>
         </motion.div>
 
-        {/* Dynamic Donation Packages */}
+        {/* Packages */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -358,22 +378,26 @@ const Donatur = () => {
         >
           <div className="flex items-center justify-center gap-2 text-accent mb-2">
             <Gift className="w-5 h-5" />
-            <h2 className="font-display text-lg font-bold tracking-wider">Donation Packages</h2>
+            <h2 className="font-display text-lg font-bold tracking-wider">
+              {lang === "id" ? "Paket Donasi" : "Donation Packages"}
+            </h2>
           </div>
           <p className="text-center text-muted-foreground text-sm mb-5">
-            Pick a package and pay via QRIS. Admin will confirm payment manually.
+            {lang === "id"
+              ? "Pilih paket dan bayar via QRIS. Admin akan konfirmasi pembayaran secara manual."
+              : "Pick a package and pay via QRIS. Admin will confirm payment manually."}
           </p>
 
           {!session && (
             <div className="mb-4">
               <label className="text-xs font-display uppercase tracking-wider text-muted-foreground mb-1 block">
-                Game Username
+                {lang === "id" ? "Username Game" : "Game Username"}
               </label>
               <div className="flex gap-2">
                 <Input
                   value={pkgInput}
                   onChange={(e) => setPkgInput(e.target.value)}
-                  placeholder="your_username"
+                  placeholder={lang === "id" ? "username_kamu" : "your_username"}
                   onKeyDown={(e) => e.key === "Enter" && setPkgUsername(pkgInput.trim())}
                 />
                 <Button
@@ -382,7 +406,7 @@ const Donatur = () => {
                   className="gap-2"
                 >
                   {pkgLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                  Check
+                  {lang === "id" ? "Cek" : "Check"}
                 </Button>
               </div>
             </div>
@@ -390,7 +414,7 @@ const Donatur = () => {
 
           {session && (
             <div className="mb-4 rounded-lg bg-primary/10 border border-primary/30 p-3 text-sm">
-              <span className="text-muted-foreground">Logged in as: </span>
+              <span className="text-muted-foreground">{lang === "id" ? "Login sebagai: " : "Logged in as: "}</span>
               <span className="font-display font-bold text-primary">{session.user.username}</span>
             </div>
           )}
@@ -411,60 +435,76 @@ const Donatur = () => {
             <>
               <div className="mb-4 flex items-center justify-between gap-2 rounded-lg bg-card/40 border border-border/40 p-3">
                 <div className="min-w-0">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Account</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                    {lang === "id" ? "Akun" : "Account"}
+                  </p>
                   <p className="font-display font-bold text-foreground truncate">{pkgData.user.username}</p>
                 </div>
                 {pkgData.user.first_time && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-display font-bold text-accent bg-accent/15 border border-accent/30 px-2 py-1 rounded-full">
                     <Sparkles className="w-3 h-3" />
-                    First Time Eligible
+                    {lang === "id" ? "Eligible First Time" : "First Time Eligible"}
                   </span>
                 )}
               </div>
 
-              {(pkgData.data || []).length === 0 && (
-                <p className="text-center text-sm text-muted-foreground py-4">No packages available</p>
+              {groupedPackages.length === 0 && (
+                <p className="text-center text-sm text-muted-foreground py-4">
+                  {lang === "id" ? "Tidak ada paket" : "No packages available"}
+                </p>
               )}
 
-              <div className="space-y-2">
-                {(pkgData.data || []).map((p) => {
-                  const isFirst = p.type === "firstime";
+              <div className="space-y-5">
+                {groupedPackages.map(([type, list]) => {
+                  const isFirst = type === "firstime";
                   return (
-                    <button
-                      key={p.id}
-                      onClick={() => selectPackage(p)}
-                      disabled={qrisLoading}
-                      className={`w-full text-left rounded-lg border p-3 transition-colors disabled:opacity-50 ${
-                        isFirst
-                          ? "bg-accent/10 border-accent/30 hover:bg-accent/20"
-                          : "bg-primary/5 border-primary/20 hover:bg-primary/10"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className={`font-display font-bold text-sm ${isFirst ? "text-accent" : "text-primary"}`}>
-                            {p.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">{formatRupiah(p.price)}</p>
-                        </div>
-                        {isFirst && (
-                          <span className="text-[10px] font-display font-bold text-accent bg-accent/15 border border-accent/30 px-2 py-0.5 rounded-full">
-                            FIRST TIME
-                          </span>
-                        )}
+                    <div key={type}>
+                      <h3 className={`font-display text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2 ${isFirst ? "text-accent" : "text-primary"}`}>
+                        {isFirst ? <Sparkles className="w-3.5 h-3.5" /> : <Gift className="w-3.5 h-3.5" />}
+                        {categoryLabel(type)}
+                      </h3>
+                      <div className="space-y-2">
+                        {list.map((p) => {
+                          const resolved = p.rewards.map(resolveReward);
+                          return (
+                            <button
+                              key={p.id}
+                              onClick={() => selectPackage(p)}
+                              disabled={qrisLoading}
+                              className={`w-full text-left rounded-lg border p-3 transition-colors disabled:opacity-50 ${
+                                isFirst
+                                  ? "bg-accent/10 border-accent/30 hover:bg-accent/20"
+                                  : "bg-primary/5 border-primary/20 hover:bg-primary/10"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className={`font-display font-bold text-sm ${isFirst ? "text-accent" : "text-primary"}`}>
+                                    {p.name}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">{formatRupiah(p.price)}</p>
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap gap-1.5 mt-2">
+                                {resolved.map((r) => (
+                                  <span
+                                    key={r.raw}
+                                    title={r.description ? `${r.label}${r.cooldown != null ? ` · CD ${r.cooldown}` : ""}\n${r.description}` : r.label}
+                                    className="inline-flex items-center gap-1 text-[10px] font-display font-bold text-foreground bg-card/60 border border-border/40 px-2 py-0.5 rounded-full"
+                                  >
+                                    {r.kind === "skill" ? <Zap className="w-3 h-3 text-accent" /> : <Sparkles className="w-3 h-3 text-accent" />}
+                                    {r.label}
+                                    {r.kind === "skill" && r.cooldown != null && (
+                                      <span className="text-muted-foreground font-normal">CD{r.cooldown}</span>
+                                    )}
+                                  </span>
+                                ))}
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {p.rewards.map((r) => (
-                          <span
-                            key={r}
-                            className="inline-flex items-center gap-1 text-[10px] font-display font-bold text-foreground bg-card/60 border border-border/40 px-2 py-0.5 rounded-full"
-                          >
-                            <Sparkles className="w-3 h-3 text-accent" />
-                            {formatReward(r)}
-                          </span>
-                        ))}
-                      </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -472,71 +512,7 @@ const Donatur = () => {
           )}
         </motion.div>
 
-
-        {!loading && donorData && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 }}
-            className="mt-6 grid grid-cols-3 gap-3"
-          >
-            <div className="glass-card rounded-xl p-4 text-center">
-              <TrendingUp className="mx-auto w-5 h-5 text-accent mb-1" />
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("donatur_total_raised")}</p>
-              <p className="font-display text-base font-bold text-foreground mt-1">
-                {formatRupiah(parseInt(donorData.total || "0", 10))}
-              </p>
-            </div>
-            <div className="glass-card rounded-xl p-4 text-center">
-              <Wallet className="mx-auto w-5 h-5 text-primary mb-1" />
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("donatur_total_donors")}</p>
-              <p className="font-display text-base font-bold text-foreground mt-1">{donorData.jumlah_data}</p>
-            </div>
-            <div className="glass-card rounded-xl p-4 text-center">
-              <Users className="mx-auto w-5 h-5 text-accent mb-1" />
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("donatur_unique_donors")}</p>
-              <p className="font-display text-base font-bold text-foreground mt-1">{grouped.length}</p>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Income Summary */}
-        {!loading && summary && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.28 }}
-            className="mt-4 glass-card rounded-2xl p-5"
-          >
-            <div className="flex items-center justify-center gap-2 text-accent mb-4">
-              <TrendingUp className="w-5 h-5" />
-              <h2 className="font-display text-base font-bold tracking-wider">{t("donatur_summary_title")}</h2>
-            </div>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="rounded-lg bg-primary/10 border border-primary/20 p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("donatur_summary_qris")}</p>
-                <p className="font-display font-bold text-primary mt-1">{formatRupiah(summary.qris)}</p>
-              </div>
-              <div className="rounded-lg bg-accent/10 border border-accent/20 p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("donatur_summary_paypal")}</p>
-                <p className="font-display font-bold text-accent mt-1">{formatRupiah(summary.paypal)}</p>
-              </div>
-              <div className="rounded-lg bg-card/50 border border-border/40 p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("donatur_summary_avg")}</p>
-                <p className="font-display font-bold text-foreground mt-1">{formatRupiah(summary.avg)}</p>
-              </div>
-              <div className="rounded-lg bg-card/50 border border-border/40 p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Trophy className="w-3 h-3" /> {t("donatur_summary_top")}
-                </p>
-                <p className="font-display font-bold text-foreground mt-1 truncate">{summary.top?.username}</p>
-                <p className="text-[10px] text-accent">{formatRupiah(summary.top?.total ?? 0)}</p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Join Community */}
+        {/* Community */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -564,104 +540,9 @@ const Donatur = () => {
             </a>
           </div>
         </motion.div>
-
-        {/* Donor List (grouped) */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="mt-8"
-        >
-          <h2 className="font-display text-xl font-bold text-foreground text-center mb-4 flex items-center justify-center gap-2">
-            <Users className="w-5 h-5 text-accent" />
-            {t("donatur_list_title")}
-          </h2>
-
-          {loading ? (
-            <div className="glass-card rounded-xl p-8 text-center">
-              <p className="text-muted-foreground text-sm">{t("donatur_loading")}</p>
-            </div>
-          ) : grouped.length === 0 ? (
-            <div className="glass-card rounded-xl p-8 text-center">
-              <p className="text-muted-foreground text-sm">{t("donatur_empty")}</p>
-            </div>
-          ) : (
-            <div className="glass-card rounded-xl overflow-hidden">
-              <div className="divide-y divide-border/40">
-                {grouped.map((g, i) => (
-                  <button
-                    key={g.user_id}
-                    onClick={() => setHistoryDonor(g)}
-                    className="w-full flex items-center gap-3 p-3 md:p-4 hover:bg-card/40 transition-colors text-left"
-                  >
-                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-display text-xs font-bold ${
-                      i === 0 ? "bg-accent/20 border border-accent/40 text-accent" : "bg-primary/15 border border-primary/30 text-primary"
-                    }`}>
-                      {i + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-display font-bold text-foreground truncate text-sm flex items-center gap-2">
-                        {g.username}
-                        {g.count > 1 && (
-                          <span className="text-[10px] font-normal text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded">
-                            {g.count}× {t("donatur_times")}
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <History className="w-3 h-3" />
-                        {t("donatur_view_history")}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-display font-bold text-accent text-sm">{formatRupiah(g.total)}</p>
-                      <p className="text-[10px] text-muted-foreground">{formatDate(g.lastDate, lang)}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </motion.div>
       </div>
 
-      {/* Donor History Popup */}
-      <Dialog open={!!historyDonor} onOpenChange={(o) => !o && setHistoryDonor(null)}>
-        <DialogContent className="max-w-md p-0 overflow-hidden bg-card border-primary/30">
-          <DialogHeader className="p-5 pb-3">
-            <DialogTitle className="font-display text-center text-xl text-primary">
-              {historyDonor?.username}
-            </DialogTitle>
-            <DialogDescription className="text-center">
-              {t("donatur_history_title")} · {historyDonor?.count}× {t("donatur_times")}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="px-4 pb-5">
-            <div className="rounded-lg bg-accent/10 border border-accent/20 p-3 text-center mb-3">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("donatur_total_raised")}</p>
-              <p className="font-display text-xl font-bold text-accent mt-1">
-                {formatRupiah(historyDonor?.total ?? 0)}
-              </p>
-            </div>
-            <div className="max-h-72 overflow-y-auto rounded-lg border border-border/40 divide-y divide-border/40">
-              {historyDonor?.entries
-                .slice()
-                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                .map((e) => (
-                  <div key={e.id} className="flex items-center justify-between gap-2 p-3 text-sm">
-                    <div className="min-w-0">
-                      <p className="text-xs text-muted-foreground">{formatDate(e.created_at, lang)}</p>
-                      <p className="text-[10px] text-muted-foreground uppercase">{e.method} · {e.kurs}</p>
-                    </div>
-                    <p className="font-display font-bold text-accent text-sm">{formatRupiah(e.nominal)}</p>
-                  </div>
-                ))}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* QRIS Transaction Popup */}
+      {/* QRIS Dialog */}
       <Dialog open={qrisOpen} onOpenChange={setQrisOpen}>
         <DialogContent className="max-w-md p-0 overflow-hidden bg-card border-primary/30 max-h-[90vh] overflow-y-auto">
           <DialogHeader className="p-5 pb-3">
@@ -669,14 +550,16 @@ const Donatur = () => {
               {qrisData?.package?.name || "QRIS Payment"}
             </DialogTitle>
             <DialogDescription className="text-center">
-              Scan with any QRIS-supported app (ID/MY)
+              {lang === "id" ? "Scan dengan aplikasi QRIS apa saja" : "Scan with any QRIS-supported app"}
             </DialogDescription>
           </DialogHeader>
           <div className="px-4 pb-5 space-y-3">
             {qrisLoading && (
               <div className="text-center py-10">
                 <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-                <p className="text-sm text-muted-foreground mt-2">Generating QRIS...</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  {lang === "id" ? "Membuat QRIS..." : "Generating QRIS..."}
+                </p>
               </div>
             )}
 
@@ -691,10 +574,12 @@ const Donatur = () => {
                 </div>
 
                 <div className="rounded-lg bg-primary/10 border border-primary/30 p-3 text-center">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Payment</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                    {lang === "id" ? "Total Pembayaran" : "Total Payment"}
+                  </p>
                   <p className="font-display text-2xl font-black text-primary">{formatRupiah(currentTotal)}</p>
                   <p className="text-[10px] text-muted-foreground mt-1">
-                    Nominal: {formatRupiah(qrisData.payment.nominal)} + Unique Code: {qrisData.payment.unique_code}
+                    {lang === "id" ? "Nominal" : "Nominal"}: {formatRupiah(qrisData.payment.nominal)} + {lang === "id" ? "Kode Unik" : "Unique Code"}: {qrisData.payment.unique_code}
                   </p>
                 </div>
 
@@ -717,27 +602,34 @@ const Donatur = () => {
                   </div>
                 </div>
 
-                {qrisData.package?.rewards && qrisData.package.rewards.length > 0 && (
+                {dialogRewards.length > 0 && (
                   <div className="rounded-lg bg-accent/10 border border-accent/30 p-3">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Rewards</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {qrisData.package.rewards.map((r) => (
-                        <span
-                          key={r}
-                          className="inline-flex items-center gap-1 text-[10px] font-display font-bold text-accent bg-accent/15 border border-accent/30 px-2 py-0.5 rounded-full"
-                        >
-                          <Sparkles className="w-3 h-3" />
-                          {formatReward(r)}
-                        </span>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">
+                      {lang === "id" ? "Hadiah" : "Rewards"}
+                    </p>
+                    <ul className="space-y-1.5">
+                      {dialogRewards.map((r) => (
+                        <li key={r.raw} className="text-xs">
+                          <div className="flex items-center gap-1.5 font-display font-bold text-accent">
+                            {r.kind === "skill" ? <Zap className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
+                            {r.label}
+                            {r.kind === "skill" && r.cooldown != null && (
+                              <span className="text-[10px] font-normal text-muted-foreground">CD {r.cooldown}</span>
+                            )}
+                          </div>
+                          {r.description && (
+                            <p className="text-[10px] text-muted-foreground leading-relaxed pl-4.5 ml-0.5">{r.description}</p>
+                          )}
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   </div>
                 )}
 
                 <div className="grid grid-cols-2 gap-2">
                   <Button onClick={() => checkStatus(false)} variant="outline" className="gap-2">
                     <RefreshCw className="w-4 h-4" />
-                    Check Status
+                    {lang === "id" ? "Cek Status" : "Check Status"}
                   </Button>
                   <a href={waLink} target="_blank" rel="noopener noreferrer">
                     <Button className="w-full gap-2 bg-[#25D366] hover:bg-[#1ebe57] text-white">
@@ -748,14 +640,15 @@ const Donatur = () => {
                 </div>
 
                 <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
-                  Payment is verified manually by admin via WhatsApp before rewards are sent.
+                  {lang === "id"
+                    ? "Pembayaran diverifikasi manual oleh admin via WhatsApp sebelum hadiah dikirim."
+                    : "Payment is verified manually by admin via WhatsApp before rewards are delivered."}
                 </p>
               </>
             )}
           </div>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 };
