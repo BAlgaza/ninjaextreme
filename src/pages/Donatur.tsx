@@ -118,10 +118,160 @@ const formatDate = (iso: string, lang: string) => {
 
 const Donatur = () => {
   const { t, lang } = useLanguage();
+  const { data: session } = useSession();
   const [donorData, setDonorData] = useState<DonorApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [qrisOpen, setQrisOpen] = useState(false);
   const [historyDonor, setHistoryDonor] = useState<GroupedDonor | null>(null);
+
+  // Donation flow state
+  const [pkgUsername, setPkgUsername] = useState<string>("");
+  const [pkgInput, setPkgInput] = useState<string>("");
+  const [pkgData, setPkgData] = useState<DonasiPaketResponse | null>(null);
+  const [pkgLoading, setPkgLoading] = useState(false);
+  const [pkgError, setPkgError] = useState<string | null>(null);
+  const [qrisOpen, setQrisOpen] = useState(false);
+  const [qrisLoading, setQrisLoading] = useState(false);
+  const [qrisData, setQrisData] = useState<QrisResponse | null>(null);
+  const [checkData, setCheckData] = useState<CheckResponse | null>(null);
+  const pollRef = useRef<number | null>(null);
+
+  // Auto-fill username from session
+  useEffect(() => {
+    if (session?.user?.username && !pkgUsername) {
+      setPkgUsername(session.user.username);
+      setPkgInput(session.user.username);
+    }
+  }, [session, pkgUsername]);
+
+  const loadPackages = useCallback(async (username: string) => {
+    if (!username.trim()) return;
+    setPkgLoading(true);
+    setPkgError(null);
+    try {
+      const r = await fetch(`${API_BASE}/donasi/paket/${encodeURIComponent(username.trim())}`);
+      const j: DonasiPaketResponse = await r.json();
+      if (!j.status) {
+        setPkgError(j.message || "User not found");
+        setPkgData(null);
+      } else {
+        setPkgData(j);
+        setPkgUsername(j.user?.username || username.trim());
+      }
+    } catch {
+      setPkgError("Network error");
+      setPkgData(null);
+    } finally {
+      setPkgLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (pkgUsername) loadPackages(pkgUsername);
+  }, [pkgUsername, loadPackages]);
+
+  // Restore active transaction from localStorage
+  useEffect(() => {
+    const raw = localStorage.getItem(TX_KEY);
+    if (!raw) return;
+    try {
+      const tx = JSON.parse(raw) as { username: string; otp: string };
+      if (tx.username && tx.otp) {
+        // background check; if found and pending/paid -> show dialog
+        fetch(`${API_BASE}/donasi/check/${encodeURIComponent(tx.username)}/${encodeURIComponent(tx.otp)}`)
+          .then((r) => r.json())
+          .then((j: CheckResponse) => {
+            if (j.status && j.data && j.data.status_pembayaran !== "expired") {
+              setCheckData(j);
+              setQrisData({
+                status: true,
+                reused: true,
+                user: j.user,
+                package: { id: j.data.paket_id, name: j.data.paket.name, price: j.data.nominal, rewards: j.data.paket.rewards },
+                payment: {
+                  nominal: j.data.nominal,
+                  unique_code: j.data.unique_code,
+                  total_bayar: j.data.total_bayar,
+                  qris: j.data.qris,
+                  otp: j.data.otp,
+                  status: j.data.status_pembayaran,
+                },
+              });
+            } else {
+              localStorage.removeItem(TX_KEY);
+            }
+          })
+          .catch(() => {});
+      }
+    } catch {
+      localStorage.removeItem(TX_KEY);
+    }
+  }, []);
+
+  const selectPackage = useCallback(async (pkg: DonasiPackage) => {
+    if (!pkgUsername) return;
+    setQrisLoading(true);
+    setQrisOpen(true);
+    setQrisData(null);
+    setCheckData(null);
+    try {
+      const r = await fetch(`${API_BASE}/donasi/qris/${pkg.id}/${encodeURIComponent(pkgUsername)}`);
+      const j: QrisResponse = await r.json();
+      if (!j.status || !j.payment) {
+        toast({ title: "Failed", description: j.message || "Cannot generate QRIS", variant: "destructive" });
+        setQrisOpen(false);
+      } else {
+        setQrisData(j);
+        localStorage.setItem(TX_KEY, JSON.stringify({ username: pkgUsername, otp: j.payment.otp }));
+        if (j.reused) toast({ title: "Reused", description: j.message || "Using previous request" });
+      }
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+      setQrisOpen(false);
+    } finally {
+      setQrisLoading(false);
+    }
+  }, [pkgUsername]);
+
+  const checkStatus = useCallback(async (silent = false) => {
+    if (!qrisData?.payment?.otp || !pkgUsername) return;
+    try {
+      const r = await fetch(`${API_BASE}/donasi/check/${encodeURIComponent(pkgUsername)}/${encodeURIComponent(qrisData.payment.otp)}`);
+      const j: CheckResponse = await r.json();
+      if (j.status) {
+        setCheckData(j);
+        if (!silent) toast({ title: "Status", description: `Payment: ${j.data?.status_pembayaran}` });
+        if (j.data?.status_pembayaran === "paid") {
+          localStorage.removeItem(TX_KEY);
+        }
+      } else if (!silent) {
+        toast({ title: "Not found", description: j.message || "Transaction not found", variant: "destructive" });
+      }
+    } catch {
+      if (!silent) toast({ title: "Network error", variant: "destructive" });
+    }
+  }, [qrisData, pkgUsername]);
+
+  // Poll status while dialog open & pending
+  useEffect(() => {
+    if (!qrisOpen || !qrisData?.payment?.otp) return;
+    const status = checkData?.data?.status_pembayaran ?? qrisData.payment.status;
+    if (status !== "pending") return;
+    pollRef.current = window.setInterval(() => checkStatus(true), 8000);
+    return () => {
+      if (pollRef.current) window.clearInterval(pollRef.current);
+    };
+  }, [qrisOpen, qrisData, checkData, checkStatus]);
+
+  const currentStatus = checkData?.data?.status_pembayaran ?? qrisData?.payment?.status ?? "pending";
+  const currentTotal = checkData?.data?.total_bayar ?? qrisData?.payment?.total_bayar ?? 0;
+
+  const waLink = useMemo(() => {
+    if (!qrisData?.payment) return `https://wa.me/${WA_NUMBER}`;
+    const rewards = (qrisData.package?.rewards || []).map(formatReward).map((x) => `- ${x}`).join("\n");
+    const msg = `Halo kak, saya ${pkgUsername} ingin mengkonfirmasi pembayaran donasi sebesar Rp ${qrisData.payment.total_bayar.toLocaleString("id-ID")}.\nPaket: ${qrisData.package?.name}\nReward:\n${rewards}\nOTP: ${qrisData.payment.otp}\nMohon dicek ya kak, terima kasih 🙏`;
+    return `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`;
+  }, [qrisData, pkgUsername]);
+
 
   useEffect(() => {
     const apiUrl = "https://play.kotagames.web.id/api/donatur/log";
