@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Heart, MessageCircle, Users, Gift, QrCode, TrendingUp, Sparkles, History, Wallet, Trophy, Loader2, RefreshCw, CheckCircle2, Clock, XCircle, Search } from "lucide-react";
+import { Heart, MessageCircle, Users, Gift, TrendingUp, Sparkles, History, Wallet, Trophy, Loader2, RefreshCw, CheckCircle2, Clock, XCircle, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
