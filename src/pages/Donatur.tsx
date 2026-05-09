@@ -1,9 +1,70 @@
 import { motion } from "framer-motion";
-import { Heart, MessageCircle, Users, Gift, QrCode, TrendingUp, Sparkles, History, Wallet, Trophy } from "lucide-react";
+import { Heart, MessageCircle, Users, Gift, TrendingUp, Sparkles, History, Wallet, Trophy, Loader2, RefreshCw, CheckCircle2, Clock, XCircle, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useLanguage } from "@/i18n/LanguageContext";
-import { forwardRef, useEffect, useMemo, useState } from "react";
+import { useSession } from "@/hooks/useSession";
+import { toast } from "@/hooks/use-toast";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+const API_BASE = "https://play.kotagames.web.id/api";
+const WA_NUMBER = "6289506227608";
+const TX_KEY = "ne_donasi_active";
+
+interface DonasiPackage {
+  id: number;
+  name: string;
+  price: number;
+  type: "firstime" | "normal" | string;
+  rewards: string[];
+}
+interface DonasiPaketResponse {
+  status: boolean;
+  message?: string;
+  user?: { id: number; username: string; first_time: boolean };
+  total?: number;
+  data?: DonasiPackage[];
+}
+interface QrisResponse {
+  status: boolean;
+  reused?: boolean;
+  message?: string;
+  user?: { id: number; username: string; name: string };
+  package?: { id: number; name: string; price: number; rewards: string[] };
+  payment?: {
+    nominal: number;
+    unique_code: number;
+    total_bayar: number;
+    qris: string;
+    otp: string;
+    status: string;
+  };
+}
+interface CheckResponse {
+  status: boolean;
+  message?: string;
+  user?: { id: number; username: string; name: string };
+  data?: {
+    id: number;
+    paket_id: number;
+    paket: { name: string; rewards: string[] };
+    nominal: number;
+    unique_code: number;
+    total_bayar: number;
+    qris: string;
+    status_pembayaran: "pending" | "paid" | "expired" | string;
+    otp: string;
+    created_at: string;
+    updated_at: string;
+  };
+}
+
+const formatReward = (r: string) => {
+  const m = r.match(/^tokens_(\d+)$/);
+  if (m) return `${parseInt(m[1], 10).toLocaleString("id-ID")} Tokens`;
+  return r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+};
 
 const DiscordIcon = forwardRef<SVGSVGElement, React.SVGProps<SVGSVGElement>>((props, ref) => (
   <svg ref={ref} viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" {...props}>
@@ -57,10 +118,160 @@ const formatDate = (iso: string, lang: string) => {
 
 const Donatur = () => {
   const { t, lang } = useLanguage();
+  const { data: session } = useSession();
   const [donorData, setDonorData] = useState<DonorApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [qrisOpen, setQrisOpen] = useState(false);
   const [historyDonor, setHistoryDonor] = useState<GroupedDonor | null>(null);
+
+  // Donation flow state
+  const [pkgUsername, setPkgUsername] = useState<string>("");
+  const [pkgInput, setPkgInput] = useState<string>("");
+  const [pkgData, setPkgData] = useState<DonasiPaketResponse | null>(null);
+  const [pkgLoading, setPkgLoading] = useState(false);
+  const [pkgError, setPkgError] = useState<string | null>(null);
+  const [qrisOpen, setQrisOpen] = useState(false);
+  const [qrisLoading, setQrisLoading] = useState(false);
+  const [qrisData, setQrisData] = useState<QrisResponse | null>(null);
+  const [checkData, setCheckData] = useState<CheckResponse | null>(null);
+  const pollRef = useRef<number | null>(null);
+
+  // Auto-fill username from session
+  useEffect(() => {
+    if (session?.user?.username && !pkgUsername) {
+      setPkgUsername(session.user.username);
+      setPkgInput(session.user.username);
+    }
+  }, [session, pkgUsername]);
+
+  const loadPackages = useCallback(async (username: string) => {
+    if (!username.trim()) return;
+    setPkgLoading(true);
+    setPkgError(null);
+    try {
+      const r = await fetch(`${API_BASE}/donasi/paket/${encodeURIComponent(username.trim())}`);
+      const j: DonasiPaketResponse = await r.json();
+      if (!j.status) {
+        setPkgError(j.message || "User not found");
+        setPkgData(null);
+      } else {
+        setPkgData(j);
+        setPkgUsername(j.user?.username || username.trim());
+      }
+    } catch {
+      setPkgError("Network error");
+      setPkgData(null);
+    } finally {
+      setPkgLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (pkgUsername) loadPackages(pkgUsername);
+  }, [pkgUsername, loadPackages]);
+
+  // Restore active transaction from localStorage
+  useEffect(() => {
+    const raw = localStorage.getItem(TX_KEY);
+    if (!raw) return;
+    try {
+      const tx = JSON.parse(raw) as { username: string; otp: string };
+      if (tx.username && tx.otp) {
+        // background check; if found and pending/paid -> show dialog
+        fetch(`${API_BASE}/donasi/check/${encodeURIComponent(tx.username)}/${encodeURIComponent(tx.otp)}`)
+          .then((r) => r.json())
+          .then((j: CheckResponse) => {
+            if (j.status && j.data && j.data.status_pembayaran !== "expired") {
+              setCheckData(j);
+              setQrisData({
+                status: true,
+                reused: true,
+                user: j.user,
+                package: { id: j.data.paket_id, name: j.data.paket.name, price: j.data.nominal, rewards: j.data.paket.rewards },
+                payment: {
+                  nominal: j.data.nominal,
+                  unique_code: j.data.unique_code,
+                  total_bayar: j.data.total_bayar,
+                  qris: j.data.qris,
+                  otp: j.data.otp,
+                  status: j.data.status_pembayaran,
+                },
+              });
+            } else {
+              localStorage.removeItem(TX_KEY);
+            }
+          })
+          .catch(() => {});
+      }
+    } catch {
+      localStorage.removeItem(TX_KEY);
+    }
+  }, []);
+
+  const selectPackage = useCallback(async (pkg: DonasiPackage) => {
+    if (!pkgUsername) return;
+    setQrisLoading(true);
+    setQrisOpen(true);
+    setQrisData(null);
+    setCheckData(null);
+    try {
+      const r = await fetch(`${API_BASE}/donasi/qris/${pkg.id}/${encodeURIComponent(pkgUsername)}`);
+      const j: QrisResponse = await r.json();
+      if (!j.status || !j.payment) {
+        toast({ title: "Failed", description: j.message || "Cannot generate QRIS", variant: "destructive" });
+        setQrisOpen(false);
+      } else {
+        setQrisData(j);
+        localStorage.setItem(TX_KEY, JSON.stringify({ username: pkgUsername, otp: j.payment.otp }));
+        if (j.reused) toast({ title: "Reused", description: j.message || "Using previous request" });
+      }
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+      setQrisOpen(false);
+    } finally {
+      setQrisLoading(false);
+    }
+  }, [pkgUsername]);
+
+  const checkStatus = useCallback(async (silent = false) => {
+    if (!qrisData?.payment?.otp || !pkgUsername) return;
+    try {
+      const r = await fetch(`${API_BASE}/donasi/check/${encodeURIComponent(pkgUsername)}/${encodeURIComponent(qrisData.payment.otp)}`);
+      const j: CheckResponse = await r.json();
+      if (j.status) {
+        setCheckData(j);
+        if (!silent) toast({ title: "Status", description: `Payment: ${j.data?.status_pembayaran}` });
+        if (j.data?.status_pembayaran === "paid") {
+          localStorage.removeItem(TX_KEY);
+        }
+      } else if (!silent) {
+        toast({ title: "Not found", description: j.message || "Transaction not found", variant: "destructive" });
+      }
+    } catch {
+      if (!silent) toast({ title: "Network error", variant: "destructive" });
+    }
+  }, [qrisData, pkgUsername]);
+
+  // Poll status while dialog open & pending
+  useEffect(() => {
+    if (!qrisOpen || !qrisData?.payment?.otp) return;
+    const status = checkData?.data?.status_pembayaran ?? qrisData.payment.status;
+    if (status !== "pending") return;
+    pollRef.current = window.setInterval(() => checkStatus(true), 8000);
+    return () => {
+      if (pollRef.current) window.clearInterval(pollRef.current);
+    };
+  }, [qrisOpen, qrisData, checkData, checkStatus]);
+
+  const currentStatus = checkData?.data?.status_pembayaran ?? qrisData?.payment?.status ?? "pending";
+  const currentTotal = checkData?.data?.total_bayar ?? qrisData?.payment?.total_bayar ?? 0;
+
+  const waLink = useMemo(() => {
+    if (!qrisData?.payment) return `https://wa.me/${WA_NUMBER}`;
+    const rewards = (qrisData.package?.rewards || []).map(formatReward).map((x) => `- ${x}`).join("\n");
+    const msg = `Halo kak, saya ${pkgUsername} ingin mengkonfirmasi pembayaran donasi sebesar Rp ${qrisData.payment.total_bayar.toLocaleString("id-ID")}.\nPaket: ${qrisData.package?.name}\nReward:\n${rewards}\nOTP: ${qrisData.payment.otp}\nMohon dicek ya kak, terima kasih 🙏`;
+    return `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`;
+  }, [qrisData, pkgUsername]);
+
 
   useEffect(() => {
     const apiUrl = "https://play.kotagames.web.id/api/donatur/log";
@@ -138,122 +349,127 @@ const Donatur = () => {
           <p className="text-muted-foreground text-sm leading-relaxed mt-3">{t("donatur_msg")}</p>
         </motion.div>
 
-        {/* Donation Reward + QRIS */}
+        {/* Dynamic Donation Packages */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
           className="mt-6 glass-card rounded-2xl p-6 md:p-8 border-accent/30"
         >
-          <div className="flex items-center justify-center gap-2 text-accent mb-3">
-            <Gift className="w-5 h-5" />
-            <h2 className="font-display text-lg font-bold tracking-wider">{t("donatur_reward_title")}</h2>
-          </div>
-          <p className="text-center text-muted-foreground text-sm mb-5">{t("donatur_reward_desc")}</p>
-
-          <div className="rounded-xl bg-primary/10 border border-primary/30 p-5 text-center mb-5">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider font-display">{t("donatur_reward_min")}</p>
-            <p className="font-display text-3xl font-black text-primary text-glow mt-1">Rp 10.000</p>
-            <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-accent/15 border border-accent/30 px-4 py-1.5">
-              <Sparkles className="w-4 h-4 text-accent" />
-              <span className="text-sm font-display font-bold text-accent">{t("donatur_reward_bonus")}</span>
-            </div>
-          </div>
-
-          <Button
-            onClick={() => setQrisOpen(true)}
-            className="w-full h-12 font-display text-sm gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
-          >
-            <QrCode className="w-5 h-5" />
-            {t("donatur_show_qris")}
-          </Button>
-        </motion.div>
-
-        {/* Donation Packages */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.22 }}
-          className="mt-6 glass-card rounded-2xl p-6 md:p-8"
-        >
           <div className="flex items-center justify-center gap-2 text-accent mb-2">
             <Gift className="w-5 h-5" />
-            <h2 className="font-display text-lg font-bold tracking-wider">{t("donatur_packages_title")}</h2>
+            <h2 className="font-display text-lg font-bold tracking-wider">Donation Packages</h2>
           </div>
-          <p className="text-center text-muted-foreground text-sm mb-5">{t("donatur_packages_desc")}</p>
-
-          {/* Regular */}
-          <p className="font-display text-xs uppercase tracking-wider text-muted-foreground mb-2">
-            {t("donatur_pkg_regular")}
+          <p className="text-center text-muted-foreground text-sm mb-5">
+            Pick a package and pay via QRIS. Admin will confirm payment manually.
           </p>
-          <div className="space-y-2 mb-5">
-            {[
-              { price: 10000, tokens: 15000, gacha: 0 },
-              { price: 30000, tokens: 44000, gacha: 3 },
-              { price: 50000, tokens: 75000, gacha: 5 },
-              { price: 100000, tokens: 140000, gacha: 10 },
-              { price: 150000, tokens: 215000, gacha: 16 },
-            ].map((p) => (
-              <div
-                key={p.price}
-                className="flex items-center justify-between gap-3 rounded-lg bg-primary/5 border border-primary/20 p-3"
-              >
-                <p className="font-display font-bold text-primary text-sm">{formatRupiah(p.price)}</p>
-                <div className="flex items-center gap-2 flex-wrap justify-end">
-                  <span className="text-xs font-display font-bold text-foreground">
-                    {p.tokens.toLocaleString("id-ID")} {t("donatur_pkg_tokens")}
-                  </span>
-                  {p.gacha > 0 && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-display font-bold text-accent bg-accent/15 border border-accent/30 px-2 py-0.5 rounded-full">
-                      <Sparkles className="w-3 h-3" />
-                      {p.gacha}× {t("donatur_pkg_gacha")}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
 
-          {/* First-time */}
-          <div className="flex items-center justify-between mb-2">
-            <p className="font-display text-xs uppercase tracking-wider text-accent">
-              {t("donatur_pkg_firsttime")}
-            </p>
-            <span className="text-[10px] text-muted-foreground italic">
-              {t("donatur_pkg_firsttime_note")}
-            </span>
-          </div>
-          <div className="space-y-2">
-            {[
-              { price: 10000, tokens: 40000, extras: [] as string[] },
-              { price: 20000, tokens: 50000, extras: ["Pet Whitehand", "ChangeID"] },
-            ].map((p) => (
-              <div
-                key={p.price}
-                className="rounded-lg bg-accent/10 border border-accent/30 p-3"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="font-display font-bold text-accent text-sm">{formatRupiah(p.price)}</p>
-                  <span className="text-xs font-display font-bold text-foreground">
-                    {p.tokens.toLocaleString("id-ID")} {t("donatur_pkg_tokens")}
-                  </span>
+          {!session && (
+            <div className="mb-4">
+              <label className="text-xs font-display uppercase tracking-wider text-muted-foreground mb-1 block">
+                Game Username
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  value={pkgInput}
+                  onChange={(e) => setPkgInput(e.target.value)}
+                  placeholder="your_username"
+                  onKeyDown={(e) => e.key === "Enter" && setPkgUsername(pkgInput.trim())}
+                />
+                <Button
+                  onClick={() => setPkgUsername(pkgInput.trim())}
+                  disabled={!pkgInput.trim() || pkgLoading}
+                  className="gap-2"
+                >
+                  {pkgLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                  Check
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {session && (
+            <div className="mb-4 rounded-lg bg-primary/10 border border-primary/30 p-3 text-sm">
+              <span className="text-muted-foreground">Logged in as: </span>
+              <span className="font-display font-bold text-primary">{session.user.username}</span>
+            </div>
+          )}
+
+          {pkgLoading && (
+            <div className="text-center py-6">
+              <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
+            </div>
+          )}
+
+          {pkgError && (
+            <div className="rounded-lg bg-destructive/10 border border-destructive/30 p-4 text-center text-sm text-destructive">
+              {pkgError}
+            </div>
+          )}
+
+          {!pkgLoading && pkgData?.status && pkgData.user && (
+            <>
+              <div className="mb-4 flex items-center justify-between gap-2 rounded-lg bg-card/40 border border-border/40 p-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Account</p>
+                  <p className="font-display font-bold text-foreground truncate">{pkgData.user.username}</p>
                 </div>
-                {p.extras.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2 justify-end">
-                    {p.extras.map((e) => (
-                      <span
-                        key={e}
-                        className="inline-flex items-center gap-1 text-[10px] font-display font-bold text-primary bg-primary/15 border border-primary/30 px-2 py-0.5 rounded-full"
-                      >
-                        <Sparkles className="w-3 h-3" />
-                        {e}
-                      </span>
-                    ))}
-                  </div>
+                {pkgData.user.first_time && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-display font-bold text-accent bg-accent/15 border border-accent/30 px-2 py-1 rounded-full">
+                    <Sparkles className="w-3 h-3" />
+                    First Time Eligible
+                  </span>
                 )}
               </div>
-            ))}
-          </div>
+
+              {(pkgData.data || []).length === 0 && (
+                <p className="text-center text-sm text-muted-foreground py-4">No packages available</p>
+              )}
+
+              <div className="space-y-2">
+                {(pkgData.data || []).map((p) => {
+                  const isFirst = p.type === "firstime";
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => selectPackage(p)}
+                      disabled={qrisLoading}
+                      className={`w-full text-left rounded-lg border p-3 transition-colors disabled:opacity-50 ${
+                        isFirst
+                          ? "bg-accent/10 border-accent/30 hover:bg-accent/20"
+                          : "bg-primary/5 border-primary/20 hover:bg-primary/10"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className={`font-display font-bold text-sm ${isFirst ? "text-accent" : "text-primary"}`}>
+                            {p.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{formatRupiah(p.price)}</p>
+                        </div>
+                        {isFirst && (
+                          <span className="text-[10px] font-display font-bold text-accent bg-accent/15 border border-accent/30 px-2 py-0.5 rounded-full">
+                            FIRST TIME
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {p.rewards.map((r) => (
+                          <span
+                            key={r}
+                            className="inline-flex items-center gap-1 text-[10px] font-display font-bold text-foreground bg-card/60 border border-border/40 px-2 py-0.5 rounded-full"
+                          >
+                            <Sparkles className="w-3 h-3 text-accent" />
+                            {formatReward(r)}
+                          </span>
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </motion.div>
 
 
@@ -445,30 +661,101 @@ const Donatur = () => {
         </DialogContent>
       </Dialog>
 
-      {/* QRIS Popup */}
+      {/* QRIS Transaction Popup */}
       <Dialog open={qrisOpen} onOpenChange={setQrisOpen}>
-        <DialogContent className="max-w-md p-0 overflow-hidden bg-card border-primary/30">
+        <DialogContent className="max-w-md p-0 overflow-hidden bg-card border-primary/30 max-h-[90vh] overflow-y-auto">
           <DialogHeader className="p-5 pb-3">
-            <DialogTitle className="font-display text-center text-xl text-primary">{t("donatur_qris_title")}</DialogTitle>
-            <DialogDescription className="text-center">{t("donatur_qris_desc")}</DialogDescription>
+            <DialogTitle className="font-display text-center text-xl text-primary">
+              {qrisData?.package?.name || "QRIS Payment"}
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              Scan with any QRIS-supported app (ID/MY)
+            </DialogDescription>
           </DialogHeader>
-          <div className="px-4 pb-5">
-            <div className="rounded-xl overflow-hidden bg-white">
-              <img
-                src="https://algaza.site/panel/qris.jpg"
-                alt="QRIS"
-                width={862}
-                height={1104}
-                className="w-full h-auto block"
-              />
-            </div>
-            <p className="text-center text-xs text-muted-foreground mt-3">
-              {t("donatur_reward_min")}: <span className="font-bold text-primary">Rp 10.000</span> →{" "}
-              <span className="text-accent font-bold">{t("donatur_reward_bonus")}</span>
-            </p>
+          <div className="px-4 pb-5 space-y-3">
+            {qrisLoading && (
+              <div className="text-center py-10">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                <p className="text-sm text-muted-foreground mt-2">Generating QRIS...</p>
+              </div>
+            )}
+
+            {!qrisLoading && qrisData?.payment && (
+              <>
+                <div className="rounded-xl overflow-hidden bg-white p-3">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=0&data=${encodeURIComponent(qrisData.payment.qris)}`}
+                    alt="QRIS"
+                    className="w-full h-auto block"
+                  />
+                </div>
+
+                <div className="rounded-lg bg-primary/10 border border-primary/30 p-3 text-center">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Payment</p>
+                  <p className="font-display text-2xl font-black text-primary">{formatRupiah(currentTotal)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Nominal: {formatRupiah(qrisData.payment.nominal)} + Unique Code: {qrisData.payment.unique_code}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-lg bg-card/50 border border-border/40 p-2">
+                    <p className="text-[10px] text-muted-foreground uppercase">OTP</p>
+                    <p className="font-display font-bold text-foreground">{qrisData.payment.otp}</p>
+                  </div>
+                  <div className="rounded-lg bg-card/50 border border-border/40 p-2">
+                    <p className="text-[10px] text-muted-foreground uppercase">Status</p>
+                    <p className={`font-display font-bold inline-flex items-center gap-1 ${
+                      currentStatus === "paid" ? "text-accent" :
+                      currentStatus === "expired" ? "text-destructive" : "text-primary"
+                    }`}>
+                      {currentStatus === "paid" ? <CheckCircle2 className="w-3 h-3" /> :
+                       currentStatus === "expired" ? <XCircle className="w-3 h-3" /> :
+                       <Clock className="w-3 h-3" />}
+                      {currentStatus.toUpperCase()}
+                    </p>
+                  </div>
+                </div>
+
+                {qrisData.package?.rewards && qrisData.package.rewards.length > 0 && (
+                  <div className="rounded-lg bg-accent/10 border border-accent/30 p-3">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Rewards</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {qrisData.package.rewards.map((r) => (
+                        <span
+                          key={r}
+                          className="inline-flex items-center gap-1 text-[10px] font-display font-bold text-accent bg-accent/15 border border-accent/30 px-2 py-0.5 rounded-full"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          {formatReward(r)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Button onClick={() => checkStatus(false)} variant="outline" className="gap-2">
+                    <RefreshCw className="w-4 h-4" />
+                    Check Status
+                  </Button>
+                  <a href={waLink} target="_blank" rel="noopener noreferrer">
+                    <Button className="w-full gap-2 bg-[#25D366] hover:bg-[#1ebe57] text-white">
+                      <MessageCircle className="w-4 h-4" />
+                      WhatsApp
+                    </Button>
+                  </a>
+                </div>
+
+                <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
+                  Payment is verified manually by admin via WhatsApp before rewards are sent.
+                </p>
+              </>
+            )}
           </div>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 };
