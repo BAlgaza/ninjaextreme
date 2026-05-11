@@ -70,6 +70,7 @@ const DiscordIcon = forwardRef<SVGSVGElement, React.SVGProps<SVGSVGElement>>((pr
 DiscordIcon.displayName = "DiscordIcon";
 
 
+interface ItemkuCek {
   status: boolean;
   category?: string;
   id?: string;
