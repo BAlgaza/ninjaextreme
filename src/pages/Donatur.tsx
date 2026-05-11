@@ -156,32 +156,11 @@ const Donatur = () => {
   const [, setLibReady] = useState(0);
   const pollRef = useRef<number | null>(null);
 
-  // Load skills + library data once
+  // Subscribe to itemku cache updates
   useEffect(() => {
-    const tasks: Promise<unknown>[] = [];
-    if (!skillsCache) {
-      tasks.push(
-        fetch(SKILLS_URL)
-          .then((r) => r.json())
-          .then((arr: SkillEntry[]) => {
-            skillsCache = {};
-            for (const s of arr || []) if (s?.id) skillsCache[s.id] = s;
-          })
-          .catch(() => { skillsCache = {}; })
-      );
-    }
-    if (!libraryCache) {
-      tasks.push(
-        fetch(LIBRARY_URL)
-          .then((r) => r.json())
-          .then((arr: LibraryEntry[]) => {
-            libraryCache = {};
-            for (const i of arr || []) if (i?.id) libraryCache[i.id] = i;
-          })
-          .catch(() => { libraryCache = {}; })
-      );
-    }
-    if (tasks.length) Promise.all(tasks).then(() => setLibReady((v) => v + 1));
+    const listener = () => setLibReady((v) => v + 1);
+    itemkuListeners.add(listener);
+    return () => { itemkuListeners.delete(listener); };
   }, []);
 
   useEffect(() => {
