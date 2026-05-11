@@ -11,8 +11,6 @@ import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "r
 const API_BASE = "https://play.kotagames.web.id/api";
 const WA_NUMBER = "6289506227608";
 const TX_KEY = "ne_donasi_active";
-const SKILLS_URL = "https://kotagames.web.id/game_data/skills.json";
-const LIBRARY_URL = "https://kotagames.web.id/game_data/library.json";
 
 interface DonasiPackage {
   id: number;
@@ -62,13 +60,6 @@ interface CheckResponse {
   };
 }
 
-interface SkillEntry { id: string; name: string; description?: string; cooldown?: number }
-interface LibraryEntry { id: string; name: string; description?: string; type?: string }
-
-// Cached lookup maps
-let skillsCache: Record<string, SkillEntry> | null = null;
-let libraryCache: Record<string, LibraryEntry> | null = null;
-
 const formatRupiah = (n: number) => "Rp " + n.toLocaleString("id-ID");
 
 const DiscordIcon = forwardRef<SVGSVGElement, React.SVGProps<SVGSVGElement>>((props, ref) => (
@@ -78,32 +69,75 @@ const DiscordIcon = forwardRef<SVGSVGElement, React.SVGProps<SVGSVGElement>>((pr
 ));
 DiscordIcon.displayName = "DiscordIcon";
 
+
+interface ItemkuCek {
+  status: boolean;
+  category?: string;
+  id?: string;
+  name?: string;
+  description?: string;
+  level?: number;
+  premium?: boolean;
+  price_gold?: number;
+  price_tokens?: number;
+  skills?: string;
+}
+
+const itemkuCache: Record<string, ItemkuCek | "pending" | "error"> = {};
+const itemkuListeners = new Set<() => void>();
+const notifyItemku = () => itemkuListeners.forEach((fn) => fn());
+
+const fetchItemku = (id: string) => {
+  if (itemkuCache[id]) return;
+  itemkuCache[id] = "pending";
+  fetch(`${API_BASE}/itemku/cek/${encodeURIComponent(id)}`)
+    .then((r) => r.json())
+    .then((j: ItemkuCek) => {
+      itemkuCache[id] = j?.status ? j : "error";
+      notifyItemku();
+    })
+    .catch(() => { itemkuCache[id] = "error"; notifyItemku(); });
+};
+
 interface ResolvedReward {
   raw: string;
   label: string;
   description?: string;
-  cooldown?: number;
-  kind: "tokens" | "skill" | "item" | "other";
+  level?: number;
+  kind: "tokens" | "skill" | "item" | "pet" | "weapon" | "other";
+  loading?: boolean;
 }
 
 const resolveReward = (r: string): ResolvedReward => {
   const tok = r.match(/^tokens_(\d+)$/);
   if (tok) return { raw: r, label: `${parseInt(tok[1], 10).toLocaleString("id-ID")} Tokens`, kind: "tokens" };
-  if (/^skill_/.test(r)) {
-    const s = skillsCache?.[r];
-    return {
-      raw: r,
-      label: s?.name || r,
-      description: s?.description,
-      cooldown: s?.cooldown,
-      kind: "skill",
-    };
+
+  const cached = itemkuCache[r];
+  if (!cached) {
+    fetchItemku(r);
+    return { raw: r, label: r.replace(/_/g, " "), kind: "other", loading: true };
   }
-  if (/^(wpn_|set_|hair_|accessory_|pet_|back_|item_)/.test(r)) {
-    const it = libraryCache?.[r];
-    return { raw: r, label: it?.name || r.replace(/_/g, " "), description: it?.description, kind: "item" };
+  if (cached === "pending") return { raw: r, label: r.replace(/_/g, " "), kind: "other", loading: true };
+  if (cached === "error") {
+    const fallback = r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    if (/^skill_/.test(r)) return { raw: r, label: fallback, kind: "skill" };
+    if (/^pet_/.test(r)) return { raw: r, label: fallback, kind: "pet" };
+    if (/^wpn_/.test(r)) return { raw: r, label: fallback, kind: "weapon" };
+    return { raw: r, label: fallback, kind: "other" };
   }
-  return { raw: r, label: r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()), kind: "other" };
+  const cat = cached.category;
+  const kind: ResolvedReward["kind"] =
+    cat === "skill" ? "skill" :
+    cat === "pet" ? "pet" :
+    cat === "weapon" ? "weapon" :
+    /^(wpn_|set_|hair_|accessory_|back_|item_)/.test(r) ? "item" : "other";
+  return {
+    raw: r,
+    label: cached.name || r,
+    description: cached.description,
+    level: cached.level,
+    kind,
+  };
 };
 
 const Donatur = () => {
@@ -122,32 +156,11 @@ const Donatur = () => {
   const [, setLibReady] = useState(0);
   const pollRef = useRef<number | null>(null);
 
-  // Load skills + library data once
+  // Subscribe to itemku cache updates
   useEffect(() => {
-    const tasks: Promise<unknown>[] = [];
-    if (!skillsCache) {
-      tasks.push(
-        fetch(SKILLS_URL)
-          .then((r) => r.json())
-          .then((arr: SkillEntry[]) => {
-            skillsCache = {};
-            for (const s of arr || []) if (s?.id) skillsCache[s.id] = s;
-          })
-          .catch(() => { skillsCache = {}; })
-      );
-    }
-    if (!libraryCache) {
-      tasks.push(
-        fetch(LIBRARY_URL)
-          .then((r) => r.json())
-          .then((arr: LibraryEntry[]) => {
-            libraryCache = {};
-            for (const i of arr || []) if (i?.id) libraryCache[i.id] = i;
-          })
-          .catch(() => { libraryCache = {}; })
-      );
-    }
-    if (tasks.length) Promise.all(tasks).then(() => setLibReady((v) => v + 1));
+    const listener = () => setLibReady((v) => v + 1);
+    itemkuListeners.add(listener);
+    return () => { itemkuListeners.delete(listener); };
   }, []);
 
   useEffect(() => {
@@ -306,7 +319,7 @@ const Donatur = () => {
     const rewards = resolved
       .map((r) => {
         const parts = [`• ${r.label}`];
-        if (r.kind === "skill" && r.cooldown != null) parts.push(`(CD ${r.cooldown})`);
+        if (r.level != null) parts.push(`(Lv ${r.level})`);
         return parts.join(" ");
       })
       .join("\n");
@@ -489,13 +502,13 @@ Please verify the payment. Thank you 🙏`;
                                 {resolved.map((r) => (
                                   <span
                                     key={r.raw}
-                                    title={r.description ? `${r.label}${r.cooldown != null ? ` · CD ${r.cooldown}` : ""}\n${r.description}` : r.label}
+                                    title={r.description ? `${r.label}${r.level != null ? ` · Lv ${r.level}` : ""}\n${r.description}` : r.label}
                                     className="inline-flex items-center gap-1 text-[10px] font-display font-bold text-foreground bg-card/60 border border-border/40 px-2 py-0.5 rounded-full"
                                   >
                                     {r.kind === "skill" ? <Zap className="w-3 h-3 text-accent" /> : <Sparkles className="w-3 h-3 text-accent" />}
                                     {r.label}
-                                    {r.kind === "skill" && r.cooldown != null && (
-                                      <span className="text-muted-foreground font-normal">CD{r.cooldown}</span>
+                                    {r.level != null && (
+                                      <span className="text-muted-foreground font-normal">Lv{r.level}</span>
                                     )}
                                   </span>
                                 ))}
@@ -613,8 +626,8 @@ Please verify the payment. Thank you 🙏`;
                           <div className="flex items-center gap-1.5 font-display font-bold text-accent">
                             {r.kind === "skill" ? <Zap className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
                             {r.label}
-                            {r.kind === "skill" && r.cooldown != null && (
-                              <span className="text-[10px] font-normal text-muted-foreground">CD {r.cooldown}</span>
+                            {r.level != null && (
+                              <span className="text-[10px] font-normal text-muted-foreground">Lv {r.level}</span>
                             )}
                           </div>
                           {r.description && (
@@ -626,15 +639,27 @@ Please verify the payment. Thank you 🙏`;
                   </div>
                 )}
 
+                <div className="rounded-lg bg-destructive/15 border-2 border-destructive/40 p-3 animate-pulse">
+                  <p className="text-xs font-display font-bold text-destructive text-center mb-1 flex items-center justify-center gap-1">
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    {lang === "id" ? "PENTING — JANGAN LUPA!" : "IMPORTANT — DON'T FORGET!"}
+                  </p>
+                  <p className="text-[11px] text-foreground/90 text-center leading-relaxed">
+                    {lang === "id"
+                      ? "Setelah melakukan transfer, WAJIB klik tombol WhatsApp di bawah untuk konfirmasi ke admin. Tanpa konfirmasi, hadiah tidak akan dikirim."
+                      : "After transferring, you MUST click the WhatsApp button below to confirm with admin. Without confirmation, rewards will not be delivered."}
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-2 gap-2">
                   <Button onClick={() => checkStatus(false)} variant="outline" className="gap-2">
                     <RefreshCw className="w-4 h-4" />
                     {lang === "id" ? "Cek Status" : "Check Status"}
                   </Button>
                   <a href={waLink} target="_blank" rel="noopener noreferrer">
-                    <Button className="w-full gap-2 bg-[#25D366] hover:bg-[#1ebe57] text-white">
+                    <Button className="w-full gap-2 bg-[#25D366] hover:bg-[#1ebe57] text-white glow-primary">
                       <MessageCircle className="w-4 h-4" />
-                      WhatsApp
+                      {lang === "id" ? "Konfirmasi" : "Confirm"}
                     </Button>
                   </a>
                 </div>
