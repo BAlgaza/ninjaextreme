@@ -639,15 +639,27 @@ Please verify the payment. Thank you 🙏`;
                   </div>
                 )}
 
+                <div className="rounded-lg bg-destructive/15 border-2 border-destructive/40 p-3 animate-pulse">
+                  <p className="text-xs font-display font-bold text-destructive text-center mb-1 flex items-center justify-center gap-1">
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    {lang === "id" ? "PENTING — JANGAN LUPA!" : "IMPORTANT — DON'T FORGET!"}
+                  </p>
+                  <p className="text-[11px] text-foreground/90 text-center leading-relaxed">
+                    {lang === "id"
+                      ? "Setelah melakukan transfer, WAJIB klik tombol WhatsApp di bawah untuk konfirmasi ke admin. Tanpa konfirmasi, hadiah tidak akan dikirim."
+                      : "After transferring, you MUST click the WhatsApp button below to confirm with admin. Without confirmation, rewards will not be delivered."}
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-2 gap-2">
                   <Button onClick={() => checkStatus(false)} variant="outline" className="gap-2">
                     <RefreshCw className="w-4 h-4" />
                     {lang === "id" ? "Cek Status" : "Check Status"}
                   </Button>
                   <a href={waLink} target="_blank" rel="noopener noreferrer">
-                    <Button className="w-full gap-2 bg-[#25D366] hover:bg-[#1ebe57] text-white">
+                    <Button className="w-full gap-2 bg-[#25D366] hover:bg-[#1ebe57] text-white glow-primary">
                       <MessageCircle className="w-4 h-4" />
-                      WhatsApp
+                      {lang === "id" ? "Konfirmasi" : "Confirm"}
                     </Button>
                   </a>
                 </div>
