@@ -60,48 +60,75 @@ interface CheckResponse {
   };
 }
 
-interface SkillEntry { id: string; name: string; description?: string; cooldown?: number }
-interface LibraryEntry { id: string; name: string; description?: string; type?: string }
 
-// Cached lookup maps
-let skillsCache: Record<string, SkillEntry> | null = null;
-let libraryCache: Record<string, LibraryEntry> | null = null;
+interface ItemkuCek {
+  status: boolean;
+  category?: string;
+  id?: string;
+  name?: string;
+  description?: string;
+  level?: number;
+  premium?: boolean;
+  price_gold?: number;
+  price_tokens?: number;
+  skills?: string;
+}
 
-const formatRupiah = (n: number) => "Rp " + n.toLocaleString("id-ID");
+const itemkuCache: Record<string, ItemkuCek | "pending" | "error"> = {};
+const itemkuListeners = new Set<() => void>();
+const notifyItemku = () => itemkuListeners.forEach((fn) => fn());
 
-const DiscordIcon = forwardRef<SVGSVGElement, React.SVGProps<SVGSVGElement>>((props, ref) => (
-  <svg ref={ref} viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" {...props}>
-    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.947 2.418-2.157 2.418z" />
-  </svg>
-));
-DiscordIcon.displayName = "DiscordIcon";
+const fetchItemku = (id: string) => {
+  if (itemkuCache[id]) return;
+  itemkuCache[id] = "pending";
+  fetch(`${API_BASE}/itemku/cek/${encodeURIComponent(id)}`)
+    .then((r) => r.json())
+    .then((j: ItemkuCek) => {
+      itemkuCache[id] = j?.status ? j : "error";
+      notifyItemku();
+    })
+    .catch(() => { itemkuCache[id] = "error"; notifyItemku(); });
+};
 
 interface ResolvedReward {
   raw: string;
   label: string;
   description?: string;
-  cooldown?: number;
-  kind: "tokens" | "skill" | "item" | "other";
+  level?: number;
+  kind: "tokens" | "skill" | "item" | "pet" | "weapon" | "other";
+  loading?: boolean;
 }
 
 const resolveReward = (r: string): ResolvedReward => {
   const tok = r.match(/^tokens_(\d+)$/);
   if (tok) return { raw: r, label: `${parseInt(tok[1], 10).toLocaleString("id-ID")} Tokens`, kind: "tokens" };
-  if (/^skill_/.test(r)) {
-    const s = skillsCache?.[r];
-    return {
-      raw: r,
-      label: s?.name || r,
-      description: s?.description,
-      cooldown: s?.cooldown,
-      kind: "skill",
-    };
+
+  const cached = itemkuCache[r];
+  if (!cached) {
+    fetchItemku(r);
+    return { raw: r, label: r.replace(/_/g, " "), kind: "other", loading: true };
   }
-  if (/^(wpn_|set_|hair_|accessory_|pet_|back_|item_)/.test(r)) {
-    const it = libraryCache?.[r];
-    return { raw: r, label: it?.name || r.replace(/_/g, " "), description: it?.description, kind: "item" };
+  if (cached === "pending") return { raw: r, label: r.replace(/_/g, " "), kind: "other", loading: true };
+  if (cached === "error") {
+    const fallback = r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    if (/^skill_/.test(r)) return { raw: r, label: fallback, kind: "skill" };
+    if (/^pet_/.test(r)) return { raw: r, label: fallback, kind: "pet" };
+    if (/^wpn_/.test(r)) return { raw: r, label: fallback, kind: "weapon" };
+    return { raw: r, label: fallback, kind: "other" };
   }
-  return { raw: r, label: r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()), kind: "other" };
+  const cat = cached.category;
+  const kind: ResolvedReward["kind"] =
+    cat === "skill" ? "skill" :
+    cat === "pet" ? "pet" :
+    cat === "weapon" ? "weapon" :
+    /^(wpn_|set_|hair_|accessory_|back_|item_)/.test(r) ? "item" : "other";
+  return {
+    raw: r,
+    label: cached.name || r,
+    description: cached.description,
+    level: cached.level,
+    kind,
+  };
 };
 
 const Donatur = () => {
