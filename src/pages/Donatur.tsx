@@ -626,8 +626,8 @@ Please verify the payment. Thank you 🙏`;
                           <div className="flex items-center gap-1.5 font-display font-bold text-accent">
                             {r.kind === "skill" ? <Zap className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
                             {r.label}
-                            {r.kind === "skill" && r.cooldown != null && (
-                              <span className="text-[10px] font-normal text-muted-foreground">CD {r.cooldown}</span>
+                            {r.level != null && (
+                              <span className="text-[10px] font-normal text-muted-foreground">Lv {r.level}</span>
                             )}
                           </div>
                           {r.description && (
