@@ -11,8 +11,6 @@ import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "r
 const API_BASE = "https://play.kotagames.web.id/api";
 const WA_NUMBER = "6289506227608";
 const TX_KEY = "ne_donasi_active";
-const SKILLS_URL = "https://kotagames.web.id/game_data/skills.json";
-const LIBRARY_URL = "https://kotagames.web.id/game_data/library.json";
 
 interface DonasiPackage {
   id: number;
