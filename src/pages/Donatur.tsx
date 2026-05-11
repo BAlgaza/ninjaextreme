@@ -319,7 +319,7 @@ const Donatur = () => {
     const rewards = resolved
       .map((r) => {
         const parts = [`• ${r.label}`];
-        if (r.kind === "skill" && r.cooldown != null) parts.push(`(CD ${r.cooldown})`);
+        if (r.level != null) parts.push(`(Lv ${r.level})`);
         return parts.join(" ");
       })
       .join("\n");
