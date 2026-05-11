@@ -502,13 +502,13 @@ Please verify the payment. Thank you 🙏`;
                                 {resolved.map((r) => (
                                   <span
                                     key={r.raw}
-                                    title={r.description ? `${r.label}${r.cooldown != null ? ` · CD ${r.cooldown}` : ""}\n${r.description}` : r.label}
+                                    title={r.description ? `${r.label}${r.level != null ? ` · Lv ${r.level}` : ""}\n${r.description}` : r.label}
                                     className="inline-flex items-center gap-1 text-[10px] font-display font-bold text-foreground bg-card/60 border border-border/40 px-2 py-0.5 rounded-full"
                                   >
                                     {r.kind === "skill" ? <Zap className="w-3 h-3 text-accent" /> : <Sparkles className="w-3 h-3 text-accent" />}
                                     {r.label}
-                                    {r.kind === "skill" && r.cooldown != null && (
-                                      <span className="text-muted-foreground font-normal">CD{r.cooldown}</span>
+                                    {r.level != null && (
+                                      <span className="text-muted-foreground font-normal">Lv{r.level}</span>
                                     )}
                                   </span>
                                 ))}
