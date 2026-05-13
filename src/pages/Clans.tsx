@@ -293,8 +293,14 @@ const Clans = ({ embedded }: ClansProps) => {
                               <TableCell className="font-medium">{p.name}</TableCell>
                               <TableCell className="hidden sm:table-cell text-muted-foreground text-xs">{p.clan_name || "—"}</TableCell>
                               <TableCell className="text-center font-mono text-primary">{p.level}</TableCell>
-                              <TableCell className="text-right font-display text-primary font-bold">{fmtNum(p.reputation)}</TableCell>
-                              <TableCell className="text-right hidden sm:table-cell text-muted-foreground">{fmtNum(p.onigiri)}</TableCell>
+                              <TableCell className="text-right font-display text-primary font-bold">
+                                {fmtNum(p.reputation)}
+                                <DeltaBadge info={getTGRepDelta(`g_${p.character_id}`, p.reputation)} className="ml-1" compact />
+                              </TableCell>
+                              <TableCell className="text-right hidden sm:table-cell text-muted-foreground">
+                                {fmtNum(p.onigiri)}
+                                <DeltaBadge info={getTGOniDelta(`g_o_${p.character_id}`, p.onigiri)} className="ml-1" compact />
+                              </TableCell>
                               <TableCell className="text-right hidden md:table-cell text-xs text-muted-foreground">{p.active_text}</TableCell>
                             </TableRow>
                           );
