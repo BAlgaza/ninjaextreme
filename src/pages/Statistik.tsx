@@ -242,10 +242,10 @@ const Statistik = () => {
                     {t("stats_users_section")}
                   </h2>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <StatCard icon={Users} label={t("stats_total_users")} value={totals.users} />
-                    <StatCard icon={UserCheck} label={t("stats_active_users")} value={totals.usersToday} onClick={openOnlineUsers} />
-                    <StatCard icon={Activity} label={t("stats_online_users")} value={totals.usersOnline} accent onClick={openOnlineUsers} />
-                    <StatCard icon={CalendarDays} label={t("stats_active_3d")} value={totals.users3d} />
+                    <StatCard icon={Users} label={t("stats_total_users")} value={totals.users} deltaKey="users" />
+                    <StatCard icon={UserCheck} label={t("stats_active_users")} value={totals.usersToday} onClick={openOnlineUsers} deltaKey="usersToday" />
+                    <StatCard icon={Activity} label={t("stats_online_users")} value={totals.usersOnline} accent onClick={openOnlineUsers} deltaKey="usersOnline" />
+                    <StatCard icon={CalendarDays} label={t("stats_active_3d")} value={totals.users3d} deltaKey="users3d" />
                   </div>
                 </section>
 
@@ -254,10 +254,10 @@ const Statistik = () => {
                     {t("stats_chars_section")}
                   </h2>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <StatCard icon={Swords} label={t("stats_total_chars")} value={totals.chars} />
-                    <StatCard icon={UserCheck} label={t("stats_active_chars")} value={totals.charsToday} onClick={openOnlineChars} />
-                    <StatCard icon={Activity} label={t("stats_online_chars")} value={totals.charsOnline} accent onClick={openOnlineChars} />
-                    <StatCard icon={CalendarDays} label={t("stats_active_chars_3d")} value={totals.chars3d} />
+                    <StatCard icon={Swords} label={t("stats_total_chars")} value={totals.chars} deltaKey="chars" />
+                    <StatCard icon={UserCheck} label={t("stats_active_chars")} value={totals.charsToday} onClick={openOnlineChars} deltaKey="charsToday" />
+                    <StatCard icon={Activity} label={t("stats_online_chars")} value={totals.charsOnline} accent onClick={openOnlineChars} deltaKey="charsOnline" />
+                    <StatCard icon={CalendarDays} label={t("stats_active_chars_3d")} value={totals.chars3d} deltaKey="chars3d" />
                   </div>
                 </section>
 
