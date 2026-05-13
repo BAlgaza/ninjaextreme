@@ -1,11 +1,13 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Users, UserCheck, Activity, CalendarDays, Swords, Crown, Coins, Trophy, Loader2, ChevronRight, Shield, Server } from "lucide-react";
+import { Users, UserCheck, Activity, CalendarDays, Swords, Crown, Coins, Trophy, Loader2, ChevronRight, Shield, Server, ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useDeltaTracker } from "@/hooks/useDeltaTracker";
+import DeltaBadge from "@/components/DeltaBadge";
 import Clans from "./Clans";
 
 const API_BASE = "https://play.kotagames.web.id";
