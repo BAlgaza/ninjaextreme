@@ -168,8 +168,8 @@ const Statistik = () => {
   }, []);
 
   const StatCard = ({
-    icon: Icon, label, value, accent, onClick,
-  }: { icon: typeof Users; label: string; value: number; accent?: boolean; onClick?: () => void }) => (
+    icon: Icon, label, value, accent, onClick, deltaKey,
+  }: { icon: typeof Users; label: string; value: number; accent?: boolean; onClick?: () => void; deltaKey?: string }) => (
     <Card
       onClick={onClick}
       className={`p-4 glass-card border-border/50 ${onClick ? "cursor-pointer hover:border-primary/60 transition-colors" : ""}`}
@@ -180,7 +180,10 @@ const Statistik = () => {
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-xs uppercase tracking-wider text-muted-foreground font-display">{label}</div>
-          <div className="text-2xl font-display font-bold">{fmt(value)}</div>
+          <div className="text-2xl font-display font-bold flex items-center gap-1.5">
+            {fmt(value)}
+            {deltaKey && <DeltaBadge info={getTotalDelta(deltaKey, value)} />}
+          </div>
         </div>
         {onClick && <ChevronRight className="w-4 h-4 text-muted-foreground" />}
       </div>
