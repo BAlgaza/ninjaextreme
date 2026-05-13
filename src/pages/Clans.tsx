@@ -152,9 +152,26 @@ const Clans = ({ embedded }: ClansProps) => {
 
   useEffect(() => {
     fetchData(true);
-    const id = setInterval(() => fetchData(false), 3000);
+    const id = setInterval(() => fetchData(false), 1000);
     return () => clearInterval(id);
   }, [fetchData]);
+
+  // Delta trackers
+  const clanRepItems = clans.map((c) => ({ key: c.id, value: c.prestige }));
+  const { getDelta: getClanDelta } = useDeltaTracker("clan_prestige", clanRepItems);
+
+  const topGlobalRepItems = topGlobal.map((p) => ({ key: `g_${p.character_id}`, value: p.reputation }));
+  const topGlobalOniItems = topGlobal.map((p) => ({ key: `g_o_${p.character_id}`, value: p.onigiri }));
+  const { getDelta: getTGRepDelta } = useDeltaTracker("top_global_rep", topGlobalRepItems);
+  const { getDelta: getTGOniDelta } = useDeltaTracker("top_global_oni", topGlobalOniItems);
+
+  const topClan3RepItems = topClan3.map((p) => ({ key: `c3_${p.character_id}`, value: p.reputation }));
+  const topClan3OniItems = topClan3.map((p) => ({ key: `c3_o_${p.character_id}`, value: p.onigiri }));
+  const { getDelta: getTC3RepDelta } = useDeltaTracker("top_clan3_rep", topClan3RepItems);
+  const { getDelta: getTC3OniDelta } = useDeltaTracker("top_clan3_oni", topClan3OniItems);
+
+  const memberRepItems = members.map((m) => ({ key: `m_${m.id}`, value: m.reputation }));
+  const { getDelta: getMemberRepDelta } = useDeltaTracker("clan_member_rep", memberRepItems);
 
   const openMembers = useCallback(async (clan: Clan) => {
     setSelectedClan(clan);
