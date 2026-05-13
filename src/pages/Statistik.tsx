@@ -113,9 +113,37 @@ const Statistik = () => {
   useEffect(() => {
     if (tab !== "server") return;
     fetchServerData(true);
-    const id = setInterval(() => fetchServerData(false), 3000);
+    const id = setInterval(() => fetchServerData(false), 1000);
     return () => clearInterval(id);
   }, [tab, fetchServerData]);
+
+  // Delta tracking
+  const totalsItems = useMemo(() => ([
+    { key: "users", value: totals.users },
+    { key: "usersToday", value: totals.usersToday },
+    { key: "usersOnline", value: totals.usersOnline },
+    { key: "users3d", value: totals.users3d },
+    { key: "chars", value: totals.chars },
+    { key: "charsToday", value: totals.charsToday },
+    { key: "charsOnline", value: totals.charsOnline },
+    { key: "chars3d", value: totals.chars3d },
+  ]), [totals]);
+  const { getDelta: getTotalDelta } = useDeltaTracker("stats_totals", totalsItems);
+
+  const topLevelItems = useMemo(() => topLevel.map((p) => ({ key: `lv_${p.id}`, value: p.xp })), [topLevel]);
+  const { getDelta: getTopLevelDelta } = useDeltaTracker("stats_top_level_xp", topLevelItems);
+
+  const topSultanItems = useMemo(() => topSultan.map((p) => ({ key: `sl_${p.id}`, value: p.tokens })), [topSultan]);
+  const { getDelta: getTopSultanDelta } = useDeltaTracker("stats_top_sultan", topSultanItems);
+
+  // View-all dialog state
+  const [viewAll, setViewAll] = useState<null | "level" | "sultan">(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
+  useEffect(() => { setPage(1); }, [viewAll]);
+  const viewData = viewAll === "level" ? topLevel : viewAll === "sultan" ? topSultan : [];
+  const totalPages = Math.max(1, Math.ceil(viewData.length / PAGE_SIZE));
+  const pageData = viewData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const openOnlineUsers = useCallback(async () => {
     setModal("users");
