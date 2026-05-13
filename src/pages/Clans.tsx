@@ -543,7 +543,10 @@ const Clans = ({ embedded }: ClansProps) => {
                             <div className="text-yellow-400">{fmtNum(m.donated_golds)}g</div>
                             <div className="text-primary">{fmtNum(m.donated_tokens)}t</div>
                           </TableCell>
-                          <TableCell className="text-right font-mono text-xs">{fmtNum(m.reputation)}</TableCell>
+                          <TableCell className="text-right font-mono text-xs">
+                            {fmtNum(m.reputation)}
+                            <DeltaBadge info={getMemberRepDelta(`m_${m.id}`, m.reputation)} className="ml-1" compact />
+                          </TableCell>
                         </TableRow>
                       );
                     })}
