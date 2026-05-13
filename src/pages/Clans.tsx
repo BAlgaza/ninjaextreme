@@ -419,7 +419,10 @@ const Clans = ({ embedded }: ClansProps) => {
                           <Trophy className="w-3.5 h-3.5 text-primary shrink-0" />
                           <div>
                             <div className="text-muted-foreground">{t("clans_prestige")}</div>
-                            <div className="font-bold text-foreground">{fmtNum(clan.prestige)}</div>
+                            <div className="font-bold text-foreground flex items-center gap-1">
+                              {fmtNum(clan.prestige)}
+                              <DeltaBadge info={getClanDelta(clan.id, clan.prestige)} compact />
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5">
