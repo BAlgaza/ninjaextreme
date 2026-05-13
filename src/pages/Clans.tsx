@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useDeltaTracker } from "@/hooks/useDeltaTracker";
+import DeltaBadge from "@/components/DeltaBadge";
 
 const API_BASE = "https://play.kotagames.web.id";
 
@@ -150,9 +152,26 @@ const Clans = ({ embedded }: ClansProps) => {
 
   useEffect(() => {
     fetchData(true);
-    const id = setInterval(() => fetchData(false), 3000);
+    const id = setInterval(() => fetchData(false), 1000);
     return () => clearInterval(id);
   }, [fetchData]);
+
+  // Delta trackers
+  const clanRepItems = clans.map((c) => ({ key: c.id, value: c.prestige }));
+  const { getDelta: getClanDelta } = useDeltaTracker("clan_prestige", clanRepItems);
+
+  const topGlobalRepItems = topGlobal.map((p) => ({ key: `g_${p.character_id}`, value: p.reputation }));
+  const topGlobalOniItems = topGlobal.map((p) => ({ key: `g_o_${p.character_id}`, value: p.onigiri }));
+  const { getDelta: getTGRepDelta } = useDeltaTracker("top_global_rep", topGlobalRepItems);
+  const { getDelta: getTGOniDelta } = useDeltaTracker("top_global_oni", topGlobalOniItems);
+
+  const topClan3RepItems = topClan3.map((p) => ({ key: `c3_${p.character_id}`, value: p.reputation }));
+  const topClan3OniItems = topClan3.map((p) => ({ key: `c3_o_${p.character_id}`, value: p.onigiri }));
+  const { getDelta: getTC3RepDelta } = useDeltaTracker("top_clan3_rep", topClan3RepItems);
+  const { getDelta: getTC3OniDelta } = useDeltaTracker("top_clan3_oni", topClan3OniItems);
+
+  const memberRepItems = members.map((m) => ({ key: `m_${m.id}`, value: m.reputation }));
+  const { getDelta: getMemberRepDelta } = useDeltaTracker("clan_member_rep", memberRepItems);
 
   const openMembers = useCallback(async (clan: Clan) => {
     setSelectedClan(clan);
@@ -274,8 +293,14 @@ const Clans = ({ embedded }: ClansProps) => {
                               <TableCell className="font-medium">{p.name}</TableCell>
                               <TableCell className="hidden sm:table-cell text-muted-foreground text-xs">{p.clan_name || "—"}</TableCell>
                               <TableCell className="text-center font-mono text-primary">{p.level}</TableCell>
-                              <TableCell className="text-right font-display text-primary font-bold">{fmtNum(p.reputation)}</TableCell>
-                              <TableCell className="text-right hidden sm:table-cell text-muted-foreground">{fmtNum(p.onigiri)}</TableCell>
+                              <TableCell className="text-right font-display text-primary font-bold">
+                                {fmtNum(p.reputation)}
+                                <DeltaBadge info={getTGRepDelta(`g_${p.character_id}`, p.reputation)} className="ml-1" compact />
+                              </TableCell>
+                              <TableCell className="text-right hidden sm:table-cell text-muted-foreground">
+                                {fmtNum(p.onigiri)}
+                                <DeltaBadge info={getTGOniDelta(`g_o_${p.character_id}`, p.onigiri)} className="ml-1" compact />
+                              </TableCell>
                               <TableCell className="text-right hidden md:table-cell text-xs text-muted-foreground">{p.active_text}</TableCell>
                             </TableRow>
                           );
@@ -315,8 +340,14 @@ const Clans = ({ embedded }: ClansProps) => {
                               <TableCell className="text-xs text-muted-foreground">{p.clan?.name || "—"}</TableCell>
                               <TableCell className={`text-center font-display font-bold ${crColor}`}>#{p.clan_rank}</TableCell>
                               <TableCell className="text-center font-mono text-primary">{p.level}</TableCell>
-                              <TableCell className="text-right font-display text-primary font-bold">{fmtNum(p.reputation)}</TableCell>
-                              <TableCell className="text-right hidden sm:table-cell text-muted-foreground">{fmtNum(p.onigiri)}</TableCell>
+                              <TableCell className="text-right font-display text-primary font-bold">
+                                {fmtNum(p.reputation)}
+                                <DeltaBadge info={getTC3RepDelta(`c3_${p.character_id}`, p.reputation)} className="ml-1" compact />
+                              </TableCell>
+                              <TableCell className="text-right hidden sm:table-cell text-muted-foreground">
+                                {fmtNum(p.onigiri)}
+                                <DeltaBadge info={getTC3OniDelta(`c3_o_${p.character_id}`, p.onigiri)} className="ml-1" compact />
+                              </TableCell>
                             </TableRow>
                           );
                         })}
@@ -388,7 +419,10 @@ const Clans = ({ embedded }: ClansProps) => {
                           <Trophy className="w-3.5 h-3.5 text-primary shrink-0" />
                           <div>
                             <div className="text-muted-foreground">{t("clans_prestige")}</div>
-                            <div className="font-bold text-foreground">{fmtNum(clan.prestige)}</div>
+                            <div className="font-bold text-foreground flex items-center gap-1">
+                              {fmtNum(clan.prestige)}
+                              <DeltaBadge info={getClanDelta(clan.id, clan.prestige)} compact />
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5">
@@ -509,7 +543,10 @@ const Clans = ({ embedded }: ClansProps) => {
                             <div className="text-yellow-400">{fmtNum(m.donated_golds)}g</div>
                             <div className="text-primary">{fmtNum(m.donated_tokens)}t</div>
                           </TableCell>
-                          <TableCell className="text-right font-mono text-xs">{fmtNum(m.reputation)}</TableCell>
+                          <TableCell className="text-right font-mono text-xs">
+                            {fmtNum(m.reputation)}
+                            <DeltaBadge info={getMemberRepDelta(`m_${m.id}`, m.reputation)} className="ml-1" compact />
+                          </TableCell>
                         </TableRow>
                       );
                     })}

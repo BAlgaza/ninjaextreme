@@ -1,11 +1,13 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Users, UserCheck, Activity, CalendarDays, Swords, Crown, Coins, Trophy, Loader2, ChevronRight, Shield, Server } from "lucide-react";
+import { Users, UserCheck, Activity, CalendarDays, Swords, Crown, Coins, Trophy, Loader2, ChevronRight, Shield, Server, ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useDeltaTracker } from "@/hooks/useDeltaTracker";
+import DeltaBadge from "@/components/DeltaBadge";
 import Clans from "./Clans";
 
 const API_BASE = "https://play.kotagames.web.id";
@@ -111,9 +113,37 @@ const Statistik = () => {
   useEffect(() => {
     if (tab !== "server") return;
     fetchServerData(true);
-    const id = setInterval(() => fetchServerData(false), 3000);
+    const id = setInterval(() => fetchServerData(false), 1000);
     return () => clearInterval(id);
   }, [tab, fetchServerData]);
+
+  // Delta tracking
+  const totalsItems = useMemo(() => ([
+    { key: "users", value: totals.users },
+    { key: "usersToday", value: totals.usersToday },
+    { key: "usersOnline", value: totals.usersOnline },
+    { key: "users3d", value: totals.users3d },
+    { key: "chars", value: totals.chars },
+    { key: "charsToday", value: totals.charsToday },
+    { key: "charsOnline", value: totals.charsOnline },
+    { key: "chars3d", value: totals.chars3d },
+  ]), [totals]);
+  const { getDelta: getTotalDelta } = useDeltaTracker("stats_totals", totalsItems);
+
+  const topLevelItems = useMemo(() => topLevel.map((p) => ({ key: `lv_${p.id}`, value: p.xp })), [topLevel]);
+  const { getDelta: getTopLevelDelta } = useDeltaTracker("stats_top_level_xp", topLevelItems);
+
+  const topSultanItems = useMemo(() => topSultan.map((p) => ({ key: `sl_${p.id}`, value: p.tokens })), [topSultan]);
+  const { getDelta: getTopSultanDelta } = useDeltaTracker("stats_top_sultan", topSultanItems);
+
+  // View-all dialog state
+  const [viewAll, setViewAll] = useState<null | "level" | "sultan">(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
+  useEffect(() => { setPage(1); }, [viewAll]);
+  const viewData = viewAll === "level" ? topLevel : viewAll === "sultan" ? topSultan : [];
+  const totalPages = Math.max(1, Math.ceil(viewData.length / PAGE_SIZE));
+  const pageData = viewData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const openOnlineUsers = useCallback(async () => {
     setModal("users");
@@ -138,8 +168,8 @@ const Statistik = () => {
   }, []);
 
   const StatCard = ({
-    icon: Icon, label, value, accent, onClick,
-  }: { icon: typeof Users; label: string; value: number; accent?: boolean; onClick?: () => void }) => (
+    icon: Icon, label, value, accent, onClick, deltaKey,
+  }: { icon: typeof Users; label: string; value: number; accent?: boolean; onClick?: () => void; deltaKey?: string }) => (
     <Card
       onClick={onClick}
       className={`p-4 glass-card border-border/50 ${onClick ? "cursor-pointer hover:border-primary/60 transition-colors" : ""}`}
@@ -150,7 +180,10 @@ const Statistik = () => {
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-xs uppercase tracking-wider text-muted-foreground font-display">{label}</div>
-          <div className="text-2xl font-display font-bold">{fmt(value)}</div>
+          <div className="text-2xl font-display font-bold flex items-center gap-1.5">
+            {fmt(value)}
+            {deltaKey && <DeltaBadge info={getTotalDelta(deltaKey, value)} />}
+          </div>
         </div>
         {onClick && <ChevronRight className="w-4 h-4 text-muted-foreground" />}
       </div>
@@ -209,10 +242,10 @@ const Statistik = () => {
                     {t("stats_users_section")}
                   </h2>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <StatCard icon={Users} label={t("stats_total_users")} value={totals.users} />
-                    <StatCard icon={UserCheck} label={t("stats_active_users")} value={totals.usersToday} onClick={openOnlineUsers} />
-                    <StatCard icon={Activity} label={t("stats_online_users")} value={totals.usersOnline} accent onClick={openOnlineUsers} />
-                    <StatCard icon={CalendarDays} label={t("stats_active_3d")} value={totals.users3d} />
+                    <StatCard icon={Users} label={t("stats_total_users")} value={totals.users} deltaKey="users" />
+                    <StatCard icon={UserCheck} label={t("stats_active_users")} value={totals.usersToday} onClick={openOnlineUsers} deltaKey="usersToday" />
+                    <StatCard icon={Activity} label={t("stats_online_users")} value={totals.usersOnline} accent onClick={openOnlineUsers} deltaKey="usersOnline" />
+                    <StatCard icon={CalendarDays} label={t("stats_active_3d")} value={totals.users3d} deltaKey="users3d" />
                   </div>
                 </section>
 
@@ -221,10 +254,10 @@ const Statistik = () => {
                     {t("stats_chars_section")}
                   </h2>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <StatCard icon={Swords} label={t("stats_total_chars")} value={totals.chars} />
-                    <StatCard icon={UserCheck} label={t("stats_active_chars")} value={totals.charsToday} onClick={openOnlineChars} />
-                    <StatCard icon={Activity} label={t("stats_online_chars")} value={totals.charsOnline} accent onClick={openOnlineChars} />
-                    <StatCard icon={CalendarDays} label={t("stats_active_chars_3d")} value={totals.chars3d} />
+                    <StatCard icon={Swords} label={t("stats_total_chars")} value={totals.chars} deltaKey="chars" />
+                    <StatCard icon={UserCheck} label={t("stats_active_chars")} value={totals.charsToday} onClick={openOnlineChars} deltaKey="charsToday" />
+                    <StatCard icon={Activity} label={t("stats_online_chars")} value={totals.charsOnline} accent onClick={openOnlineChars} deltaKey="charsOnline" />
+                    <StatCard icon={CalendarDays} label={t("stats_active_chars_3d")} value={totals.chars3d} deltaKey="chars3d" />
                   </div>
                 </section>
 
@@ -232,7 +265,12 @@ const Statistik = () => {
                   <Card className="glass-card border-border/50 p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <Crown className="w-5 h-5 text-primary" />
-                      <h3 className="font-display text-base tracking-wider">{t("stats_top_level")}</h3>
+                      <h3 className="font-display text-base tracking-wider flex-1">{t("stats_top_level")}</h3>
+                      {topLevel.length > 10 && (
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setViewAll("level")}>
+                          View All ({topLevel.length})
+                        </Button>
+                      )}
                     </div>
                     {topLevel.length === 0 ? (
                       <div className="text-muted-foreground text-sm py-6 text-center">{t("stats_no_data")}</div>
@@ -249,7 +287,7 @@ const Statistik = () => {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {topLevel.map((p, i) => (
+                            {topLevel.slice(0, 10).map((p, i) => (
                               <TableRow key={p.id}>
                                 <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                                 <TableCell>
@@ -257,7 +295,10 @@ const Statistik = () => {
                                   <div className="text-xs text-muted-foreground">@{p.username}</div>
                                 </TableCell>
                                 <TableCell className="text-right font-display text-primary">{p.level}</TableCell>
-                                <TableCell className="text-right hidden sm:table-cell text-muted-foreground">{fmt(p.xp)}</TableCell>
+                                <TableCell className="text-right hidden sm:table-cell text-muted-foreground">
+                                  {fmt(p.xp)}
+                                  <DeltaBadge info={getTopLevelDelta(`lv_${p.id}`, p.xp)} className="ml-1" compact />
+                                </TableCell>
                                 <TableCell className="text-right">{p.rank}</TableCell>
                               </TableRow>
                             ))}
@@ -270,7 +311,12 @@ const Statistik = () => {
                   <Card className="glass-card border-border/50 p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <Coins className="w-5 h-5 text-primary" />
-                      <h3 className="font-display text-base tracking-wider">{t("stats_top_sultan")}</h3>
+                      <h3 className="font-display text-base tracking-wider flex-1">{t("stats_top_sultan")}</h3>
+                      {topSultan.length > 10 && (
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setViewAll("sultan")}>
+                          View All ({topSultan.length})
+                        </Button>
+                      )}
                     </div>
                     {topSultan.length === 0 ? (
                       <div className="text-muted-foreground text-sm py-6 text-center">{t("stats_no_data")}</div>
@@ -285,13 +331,16 @@ const Statistik = () => {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {topSultan.map((p, i) => (
+                            {topSultan.slice(0, 10).map((p, i) => (
                               <TableRow key={p.id}>
                                 <TableCell className="text-muted-foreground">
                                   {i === 0 ? <Trophy className="w-4 h-4 text-yellow-400" /> : i + 1}
                                 </TableCell>
                                 <TableCell className="font-medium">@{p.username}</TableCell>
-                                <TableCell className="text-right font-display text-primary">{fmt(p.tokens)}</TableCell>
+                                <TableCell className="text-right font-display text-primary">
+                                  {fmt(p.tokens)}
+                                  <DeltaBadge info={getTopSultanDelta(`sl_${p.id}`, p.tokens)} className="ml-1" compact />
+                                </TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
@@ -305,6 +354,87 @@ const Statistik = () => {
           </>
         )}
       </div>
+
+      {/* View All popup with paging */}
+      <Dialog open={viewAll !== null} onOpenChange={(o) => !o && setViewAll(null)}>
+        <DialogContent className="glass-card border-border max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="font-display text-primary tracking-wider flex items-center gap-2">
+              {viewAll === "level" ? <Crown className="w-5 h-5" /> : <Coins className="w-5 h-5" />}
+              {viewAll === "level" ? t("stats_top_level") : t("stats_top_sultan")}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="overflow-y-auto -mx-2 px-2">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">#</TableHead>
+                  {viewAll === "level" ? (
+                    <>
+                      <TableHead>{t("stats_col_name")}</TableHead>
+                      <TableHead className="text-right">{t("stats_col_level")}</TableHead>
+                      <TableHead className="text-right">{t("stats_col_xp")}</TableHead>
+                      <TableHead className="text-right">{t("stats_col_rank")}</TableHead>
+                    </>
+                  ) : (
+                    <>
+                      <TableHead>{t("stats_col_user")}</TableHead>
+                      <TableHead className="text-right">{t("stats_col_tokens")}</TableHead>
+                    </>
+                  )}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pageData.map((p: any, i: number) => {
+                  const idx = (page - 1) * PAGE_SIZE + i + 1;
+                  if (viewAll === "level") {
+                    return (
+                      <TableRow key={p.id}>
+                        <TableCell className="text-muted-foreground">{idx}</TableCell>
+                        <TableCell>
+                          <div className="font-medium">{p.name}</div>
+                          <div className="text-xs text-muted-foreground">@{p.username}</div>
+                        </TableCell>
+                        <TableCell className="text-right font-display text-primary">{p.level}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">
+                          {fmt(p.xp)}
+                          <DeltaBadge info={getTopLevelDelta(`lv_${p.id}`, p.xp)} className="ml-1" compact />
+                        </TableCell>
+                        <TableCell className="text-right">{p.rank}</TableCell>
+                      </TableRow>
+                    );
+                  }
+                  return (
+                    <TableRow key={p.id}>
+                      <TableCell className="text-muted-foreground">
+                        {idx === 1 ? <Trophy className="w-4 h-4 text-yellow-400" /> : idx}
+                      </TableCell>
+                      <TableCell className="font-medium">@{p.username}</TableCell>
+                      <TableCell className="text-right font-display text-primary">
+                        {fmt(p.tokens)}
+                        <DeltaBadge info={getTopSultanDelta(`sl_${p.id}`, p.tokens)} className="ml-1" compact />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          <div className="flex items-center justify-between pt-2 border-t border-border">
+            <span className="text-xs text-muted-foreground">
+              Page {page} / {totalPages} · {viewData.length} total
+            </span>
+            <div className="flex gap-1">
+              <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                <ChevronLeft className="w-3 h-3" />
+              </Button>
+              <Button size="sm" variant="outline" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+                <ChevronRightIcon className="w-3 h-3" />
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={modal !== null} onOpenChange={(o) => !o && setModal(null)}>
         <DialogContent className="glass-card border-border max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
