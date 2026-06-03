@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 
-const REDIRECT_BASE = "https://kotagames.web.id";
+const REDIRECT_BASE = "https://web.kotagames.web.id";
 
 const NotFound = () => {
   const location = useLocation();

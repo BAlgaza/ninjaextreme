@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-const REDIRECT_BASE = "https://kotagames.web.id";
+const REDIRECT_BASE = "https://web.kotagames.web.id";
 
 const App = () => {
   useEffect(() => {
