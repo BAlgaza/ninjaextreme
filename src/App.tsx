@@ -1,51 +1,26 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { LanguageProvider } from "@/i18n/LanguageContext";
-import LanguagePicker from "@/components/LanguagePicker";
-import ServerTimeBar from "@/components/ServerTimeBar";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import LoginGuard from "@/components/LoginGuard";
-import Index from "./pages/Index.tsx";
-import Donatur from "./pages/Donatur.tsx";
-import Register from "./pages/Register.tsx";
-import Statistik from "./pages/Statistik.tsx";
-import Auth from "./pages/Auth.tsx";
-import Profile from "./pages/Profile.tsx";
-import Admin from "./pages/Admin.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import { useEffect } from "react";
 
-const queryClient = new QueryClient();
+const REDIRECT_BASE = "https://kotagames.web.id";
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <LanguageProvider>
-        <Toaster />
-        <Sonner />
-        <LanguagePicker />
-        <BrowserRouter>
-          <ServerTimeBar />
-          <Navbar />
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/donatur" element={<Donatur />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/statistik" element={<LoginGuard><Statistik /></LoginGuard>} />
-            <Route path="/auth/:sesi" element={<Auth />} />
-            <Route path="/profile" element={<LoginGuard><Profile /></LoginGuard>} />
-            <Route path="/admin" element={<LoginGuard><Admin /></LoginGuard>} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <Footer />
-        </BrowserRouter>
-      </LanguageProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  useEffect(() => {
+    const { pathname, search, hash } = window.location;
+    window.location.replace(`${REDIRECT_BASE}${pathname}${search}${hash}`);
+  }, []);
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-muted">
+      <div className="text-center px-6">
+        <p className="text-sm text-muted-foreground">
+          Mengarahkan ke{" "}
+          <a href={REDIRECT_BASE} className="text-primary underline">
+            kotagames.web.id
+          </a>
+          ...
+        </p>
+      </div>
+    </div>
+  );
+};
 
 export default App;
